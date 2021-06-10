@@ -12,7 +12,7 @@ The main gamemode of Greek Roleplay Server.
 (The order is important in server.cfg)
 
 ### How can I help?
-If you have an idea or you have found a bug, create a new issue (https://github.com/greeksamp/Greek-Roleplay-Script/issues).
+If you have an idea or you have found a bug, create a [New Issue](https://github.com/greeksamp/Greek-Roleplay-Script/issues).
 
 You can also propose direct changes to the project. You can use forks to propose changes related to fixing a bug.
 We use Sourcetree (https://www.sourcetreeapp.com/), but here is a quick tutorial if you want to use just your browser for the changes:
