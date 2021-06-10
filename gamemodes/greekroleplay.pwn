@@ -1,7 +1,7 @@
 #include <a_samp>
 
 #undef 		MAX_PLAYERS
-#define 	MAX_PLAYERS 		100
+#define 	MAX_PLAYERS 		50
 
 
 #include "import/a_dini2.inc"
