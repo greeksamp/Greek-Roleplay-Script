@@ -25,4 +25,5 @@ If you are unsure, you can check our [To Do list](https://github.com/greeksamp/G
 
 ### Current Team
 - Leader Developer [@greeksamp-souvlaki](https://github.com/greeksamp-souvlaki)
+
 We need your help! Contribute and become [official developer](https://www.greeksamp.info).
