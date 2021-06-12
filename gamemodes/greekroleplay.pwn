@@ -4455,6 +4455,8 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 			SetVehicleHealth(playerData[playerid][buycar_car], 9999999);
 
+			carData[playerData[playerid][buycar_car]][vehicle_fuel] = 100;
+
 			SendClientMessage(playerid, COLOR_INFO, "*You have 1 minute to test drive.");
 
 			buyCar_hide(playerid);
