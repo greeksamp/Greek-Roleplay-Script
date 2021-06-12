@@ -10634,6 +10634,7 @@ CMD:radio(playerid, params[]) {
 		Sport FM\n\
 		Athens Deejay 95.2\n\
 		MAD Radio 106.2\n\
+		Laknicek Radio\n\
 		{B3B3B3}Stop Radio", "OK", "Cancel");
 	}
 	return 1;
@@ -10649,6 +10650,7 @@ Dialog:DLG_RADIO(playerid, response, listitem, inputtext[])
 		if (strcmp(inputtext, "Sport FM") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "sportfm");
 		if (strcmp(inputtext, "Athens Deejay 95.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "adj");
 		if (strcmp(inputtext, "MAD Radio 106.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "mad");
+		if (strcmp(inputtext, "Laknicek Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "lak");
 		if (strcmp(inputtext, "Stop Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "");
 
 		if (strcmp(inputtext, "Stop Radio") != 0) {
