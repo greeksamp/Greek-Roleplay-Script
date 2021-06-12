@@ -3755,6 +3755,13 @@ public OnPlayerDeath(playerid, killerid, reason)
 {
 
 	printf("playerid:%d killerid:%d reason:%d",playerid, killerid, reason);
+
+	
+	if (playerData[playerid][account_escaped] == 1) {
+		printf("%s died during the Escape. Escape State is now 0.", playerData[playerid][account_name]);
+		SendClientMessage(playerid, COLOR_BADINFO, "You cannot attempt to escape again. You need to wait your full jail time now.")
+		playerData[playerid][escape_state] = 0;
+	}
 	
 		
 	if(killerid == INVALID_PLAYER_ID) return 1;
@@ -3882,6 +3889,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 				HEAL_PICKUPS[temp_free_index] = CreateDynamicPickup(1240, 8, temp_px, temp_py, temp_pz);
 			}
 		}
+
 		
 	}
 
@@ -4561,6 +4569,8 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				new temp[128];
 				format(temp, sizeof(temp), "Prisoner %s (%d) has escaped. Current Wanted Level: 6", playerData[playerid][account_name], playerid);
 				SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
+
+				TXDInfoMessage_update(playerid, "");
 			}
 		}
 	}
@@ -11933,7 +11943,8 @@ stock killWanted(playerid, killerid, arrest = 0)
 			SendClientMessage(playerid, COLOR_BADINFO, "Your jail time is not enough so you can escape. You need to wait your full jail time.");
 		}
 	} else {
-		SendClientMessage(playerid, COLOR_BADINFO, "You cannot attempt to escape again. You need to wait your full jail time now.")
+		// We show this message onplayerdeath now.
+		// SendClientMessage(playerid, COLOR_BADINFO, "You cannot attempt to escape again. You need to wait your full jail time now.")
 	}
 
 	playerData[playerid][account_jailed] = temp_jail;
