@@ -10650,6 +10650,7 @@ Dialog:DLG_RADIO(playerid, response, listitem, inputtext[])
 		if (strcmp(inputtext, "Sport FM") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "sportfm");
 		if (strcmp(inputtext, "Athens Deejay 95.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "adj");
 		if (strcmp(inputtext, "MAD Radio 106.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "mad");
+		// den ebriska ta links gia ta radio oste na balo to url tou stream m giafto to afino edw esu ama mporeis na to balis http://stream.zeno.fm/2u9tem45sk8uv
 		if (strcmp(inputtext, "Laknicek Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "lak");
 		if (strcmp(inputtext, "Stop Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "");
 
