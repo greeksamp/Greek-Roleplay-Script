@@ -2423,9 +2423,19 @@ public serverInterval()
 	if (isWarTime() && serverLastSprayingTimeH != H) {
 		serverLastSprayingTimeH = H;
 		SendClientMessageToAll(0x00C3FFFF,"Spraying Time for clans has begun!");
+
+		new query_temp[256];
+		mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( 'Spraying Time for clans has begun!', 'welcome', '%d')", gettime());
+		mysql_query(Database, query_temp, false);
+
 	} else if (!isWarTime() && serverLastSprayingTimeH == H) {
 		serverLastSprayingTimeH = 99;
 		SendClientMessageToAll(0x00C3FFFF,"Spraying Time for clans is now over!");
+
+		new query_temp[256];
+		mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( 'Spraying Time for clans is now over! Turfs: https://www.greeksamp.info/rpg/clans.php', 'welcome', '%d')", gettime());
+		mysql_query(Database, query_temp, false);
+
 	}
 
 
@@ -7960,11 +7970,23 @@ CMD:rob(playerid, params[])
 				if(playerData[playerid][special_interior] == INTERIOR_BANK_LS) {
 					playerData[playerid][account_robLS_cooldown] = gettime();
 					playerData[playerid][robbing_inbank] = INTERIOR_BANK_LS;
+					
+					new query_temp[256];
+					format(query_temp, sizeof(query_temp), "**%s** is robbing the LS Bank!", playerData[playerid][account_name]);
+					mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
+					mysql_query(Database, query_temp, false);
+
 					reportCrime(playerid, 6, "Robbing the bank LS");
 				}
 				if(playerData[playerid][special_interior] == INTERIOR_BANK_SF) {
 					playerData[playerid][account_robSF_cooldown] = gettime();
 					playerData[playerid][robbing_inbank] = INTERIOR_BANK_SF;
+
+					new query_temp[256];
+					format(query_temp, sizeof(query_temp), "**%s** is robbing the SF Bank!", playerData[playerid][account_name]);
+					mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
+					mysql_query(Database, query_temp, false);
+
 					reportCrime(playerid, 6, "Robbing the bank SF");
 				}
 
@@ -8159,6 +8181,10 @@ CMD:sellgun(playerid, params[])
 {
 	if (playerData[playerid][account_faction] == FACTION_LSPD) return SendClientMessage(playerid, COLOR_SERVER, "Error: You can not sell guns as a Cop.");
 
+	if (playerData[playerid][account_jailed] > 0) return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail or escaping.");
+	
+	if (playerData[playerid][account_escaped] > 0) return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail or escaping.");
+
 	if (playerData[playerid][account_skillMaterials] < 10) return  SendClientMessage(playerid, COLOR_SERVER, "You need at least 10 delivieries to unlock this command.");
 
 	if (playerData[playerid][account_materials] < 500) return SendClientMessage(playerid, COLOR_SERVER, "You need at least 500 materials in order to sell a gun.");
@@ -8206,6 +8232,10 @@ CMD:sellgun(playerid, params[])
 CMD:acceptgun(playerid, params[])
 {
 	if (playerData[playerid][account_faction] == FACTION_LSPD) return SendClientMessage(playerid, COLOR_SERVER, "Error: You can not accept guns as a Cop.");
+
+	if (playerData[playerid][account_jailed] > 0) return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail or escaping.");
+
+	if (playerData[playerid][account_escaped] > 0) return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail or escaping.");
 
 	new temp_id;
 	if(sscanf(params, "i", temp_id)) {
@@ -10652,7 +10682,6 @@ Dialog:DLG_RADIO(playerid, response, listitem, inputtext[])
 		if (strcmp(inputtext, "Sport FM") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "sportfm");
 		if (strcmp(inputtext, "Athens Deejay 95.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "adj");
 		if (strcmp(inputtext, "MAD Radio 106.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "mad");
-		// den ebriska ta links gia ta radio oste na balo to url tou stream m giafto to afino edw esu ama mporeis na to balis http://stream.zeno.fm/2u9tem45sk8uv
 		if (strcmp(inputtext, "Laknicek Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "lak");
 		if (strcmp(inputtext, "Stop Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "");
 
@@ -11815,7 +11844,7 @@ stock carRadio(playerid, radio_station[])
 	new temp_to[128], temp[512];
 	format(temp_to, sizeof(temp_to), "%d%s%s", gettime(), radio_station, radioHashSalt);
 	SHA256_PassHash(temp_to, "", temp, sizeof(temp));
-	format(temp, sizeof(temp), "https://corona.greeksamp.info/radio.php?time=%d&station=%s&jw=%s", gettime(), radio_station, temp);
+	format(temp, sizeof(temp), "https://www.greeksamp.info/radio.php?time=%d&station=%s&jw=%s", gettime(), radio_station, temp);
 
 	PlayAudioStreamForPlayer(playerid, temp);
 	GameTextForPlayer(playerid, "~g~Loading Radio...", 2000, 4);
