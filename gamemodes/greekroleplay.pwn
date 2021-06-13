@@ -46,6 +46,8 @@ new chatIsOff = false;
 new colorTagInChat = false;
 new modeChat = 0; //0 says, 1 tags
 
+new FORCE_WARTIME = false;
+
 #define IsPlayerAfk(%0) (playerData[%0][playerTick]+1000 < GetTickCount())
 
 #if !defined isnull
@@ -100,7 +102,7 @@ new INFOMESSAGES[][] = {
 	"{e1ebe9}Info: Bored waiting in jail? Use /escape and once you are out go to a clothes shop.",
 	"{e1ebe9}Info: Do you want to /sellgun to other players? Collect materials as a dealer. Find it in /locations.",
 	"{e1ebe9}Info: Check which clan owns which turf with /turfs.",
-	"{e1ebe9}Info: With /sellgun you can sell a gun to your friends anytime, anywhere."
+	"{e1ebe9}Info: With /sellgun you can sell a gun to your friends anytime, anywhere. Check /materialshelp."
 
 }
 
@@ -519,6 +521,8 @@ enum pEnum {
 	am_spraying,								// /spray
 	am_spraying_sprays,							// /spray
 	am_spraying_cooldown,						// /spray
+	clan_war_kills,								// How many kills during the war
+	clan_war_sprays,							// How many completed sprays
 	weaponHack_cooldown,						// Anti Weapon Hack
 	weaponHack_crash_times,						// Anti Weapon Hack
 	am_sleeping,								// /sleep
@@ -1376,6 +1380,11 @@ Dialog:DLG_LOGIN_PASSWORD(playerid, response, listitem, inputtext[])
 			printFactionMOTD(playerid, 0);
 			printClanMOTD(playerid, 0);
 
+
+			if (isWarTime()) {
+				SendClientMessage(playerid, 0x00C3FFFF, "Spraying Time for clans has begun!");
+			}
+
 			
 		} else {
 			format(temp, sizeof(temp), "{ab5e5e}\nWe are sorry %s, but this is the wrong password.\n\nLogin with your password:\n", playerData[playerid][account_name]);
@@ -1771,16 +1780,23 @@ public serverInterval()
 				}
 
 				if (playerData[playerid][am_spraying] != 0) {
-					new temp_turf_id;
-					for (new tt = 0; tt < MAX_TURFS; tt++) {
-						if (turfData[tt][turf_id] == playerData[playerid][am_spraying]) {
-							temp_turf_id = tt;
+
+					if (playerData[playerid][am_spraying_sprays] > 0) {
+						new temp_turf_id;
+						for (new tt = 0; tt < MAX_TURFS; tt++) {
+							if (turfData[tt][turf_id] == playerData[playerid][am_spraying]) {
+								temp_turf_id = tt;
+							}
 						}
-					}
-					if (turfData[temp_turf_id][turf_owner_clan] != playerData[playerid][account_clan]) {
-						new temp[128];
-						format(temp, 128, "~y~~h~Spraying: ~r~~h~~h~%d", playerData[playerid][am_spraying_sprays]);
-						TXDInfoMessage_update(playerid, temp);
+						if (turfData[temp_turf_id][turf_owner_clan] != playerData[playerid][account_clan]) {
+							new temp[128];
+							format(temp, 128, "~y~~h~Spraying: ~r~~h~~h~%d", playerData[playerid][am_spraying_sprays]);
+							TXDInfoMessage_update(playerid, temp);
+						} else {
+							playerData[playerid][am_spraying] = 0;
+							ClearAnimations(playerid);
+							TXDInfoMessage_update(playerid, "");
+						}
 					} else {
 						playerData[playerid][am_spraying] = 0;
 						ClearAnimations(playerid);
@@ -1844,12 +1860,16 @@ public serverInterval()
 							if (playerData[playerid][robbing_money] < playerData[playerid][robbing_max_money]) {
 								playerData[playerid][robbing_money] += 10 + random(15);
 								new temp[64];
-								format(temp, sizeof(temp), "~g~COLLECTED: $%s", formatMoney(playerData[playerid][robbing_money]));
-								GameTextForPlayer(playerid, temp, 2000, 4);
+								format(temp, sizeof(temp), "~g~COLLECTING... $%s", formatMoney(playerData[playerid][robbing_money]));
+								TXDInfoMessage_update(playerid, temp);
 							} else {
 								if (playerData[playerid][robbing_msg_flag] == 0) {
 									SendClientMessage(playerid, COLOR_BADINFO, "You cannot collect more money. You need to get out!");
 									playerData[playerid][robbing_msg_flag] = 1;
+
+									new temp[64];
+									format(temp, sizeof(temp), "~g~COLLECTED $%s, LEAVE!", formatMoney(playerData[playerid][robbing_money]));
+									TXDInfoMessage_update(playerid, temp);
 								}
 							}
 						} else {
@@ -1862,6 +1882,8 @@ public serverInterval()
 							playerData[playerid][tracking_mode] = 0;
 							playerData[playerid][checkpoint] = 0;
 							DisablePlayerCheckpoint(playerid);
+
+							TXDInfoMessage_update(playerid, "");
 
 							if (playerData[playerid][robbing_inbank] == INTERIOR_BANK_LS) {
 								// BANK LS, DROP IN SF
@@ -2191,7 +2213,7 @@ public serverInterval()
 						playerData[playerid][tracking_mode] = 0;
 						playerData[playerid][checkpoint] = 0;
 						DisablePlayerCheckpoint(playerid);
-					} else if (IsPlayerInRangeOfPoint(temp_tracked_player, 70.0, 1412.639892,-1.787510,1000.924377)) {
+					} else if (IsPlayerInRangeOfPoint(temp_tracked_player, 70.0, 1412.639892,-1.787510,1000.924377) || playerData[temp_tracked_player][spec_mode] == 1) {
 						SendClientMessage(playerid, COLOR_BADINFO, "You can not track that player right now.");
 						playerData[playerid][tracking_mode] = 0;
 						playerData[playerid][checkpoint] = 0;
@@ -2422,7 +2444,16 @@ public serverInterval()
 
 	if (isWarTime() && serverLastSprayingTimeH != H) {
 		serverLastSprayingTimeH = H;
-		SendClientMessageToAll(0x00C3FFFF,"Spraying Time for clans has begun!");
+
+		SendClientMessageToAll(0x00C3FFFF,"Spraying Time for clans has begun! Use /turfs to see the main Spraying Points.");
+
+
+		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+			playerData[i][clan_war_kills] = 0;
+
+			playerData[i][clan_war_sprays] = 0;
+		}
+
 
 		new query_temp[256];
 		mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( 'Spraying Time for clans has begun!', 'welcome', '%d')", gettime());
@@ -2430,11 +2461,81 @@ public serverInterval()
 
 	} else if (!isWarTime() && serverLastSprayingTimeH == H) {
 		serverLastSprayingTimeH = 99;
+
 		SendClientMessageToAll(0x00C3FFFF,"Spraying Time for clans is now over!");
 
 		new query_temp[256];
 		mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( 'Spraying Time for clans is now over! Turfs: https://www.greeksamp.info/rpg/clans.php', 'welcome', '%d')", gettime());
 		mysql_query(Database, query_temp, false);
+
+
+		new best_player = -1;
+		new best_player_kills = 0;
+		
+		new best_sprayer = -1;
+		new best_sprayer_sprays = 0;
+
+		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+			if (playerData[i][clan_war_kills] > best_player_kills) {
+				best_player = i;
+				best_player_kills = playerData[i][clan_war_kills];
+			}
+
+			if (playerData[i][clan_war_sprays] > best_sprayer_sprays) {
+				best_sprayer = i;
+				best_sprayer_sprays = playerData[i][clan_war_sprays];
+			}
+
+			playerData[i][clan_war_kills] = 0;
+			playerData[i][clan_war_sprays] = 0;
+
+			if (playerData[i][am_spraying] == 1) {
+				TXDInfoMessage_update(i, "");
+			}
+
+			playerData[i][am_spraying] = 0;
+			playerData[i][am_spraying_sprays] = 0;
+		}
+
+		if (best_player != -1) {
+
+			new temp_clanIndex = getClanIndex(best_player);
+			if (temp_clanIndex != NO_CLAN && temp_clanIndex != CLAN_NOT_FOUND) {
+
+				format(query_temp, sizeof(query_temp), "* %s from %s was the clan member with the most kills (%d) during the game.", playerData[best_player][account_name], clanData[temp_clanIndex][clan_name], best_player_kills);
+
+				SendClientMessageToAll(0x00C3FFFF, query_temp);
+
+				format(query_temp, sizeof(query_temp), "**%s** from %s was the clan member with the most kills (%d) during the game.", playerData[best_player][account_name], clanData[temp_clanIndex][clan_name], best_player_kills);
+
+				giveMoney(best_player, 2500);
+
+				mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", query_temp, gettime());
+				mysql_query(Database, query_temp, false);
+
+			}
+
+		}
+
+		if (best_sprayer != -1) {
+
+			new temp_clanIndex = getClanIndex(best_sprayer);
+			if (temp_clanIndex != NO_CLAN && temp_clanIndex != CLAN_NOT_FOUND) {
+
+				format(query_temp, sizeof(query_temp), "* %s from %s was the clan member with the most successful sprays (%d).", playerData[best_sprayer][account_name], clanData[temp_clanIndex][clan_name], best_sprayer_sprays);
+
+				SendClientMessageToAll(0x00C3FFFF, query_temp);
+
+				format(query_temp, sizeof(query_temp), "**%s** from %s was the clan member with the most successful sprays (%d).", playerData[best_sprayer][account_name], clanData[temp_clanIndex][clan_name], best_sprayer_sprays);
+
+				giveMoney(best_sprayer, 3500);
+
+				mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", query_temp, gettime());
+				mysql_query(Database, query_temp, false);
+
+			}
+
+		}
 
 	}
 
@@ -3454,8 +3555,20 @@ public OnPlayerSpawn(playerid)
 
 				SetPlayerSkin(playerid, playerData[playerid][account_skin]);
 
-				SetPlayerHealth(playerid, 100);
-				SetPlayerArmour(playerid, 0);
+				if (isWarTime() && playerData[playerid][account_clan] != 0) {
+					SetPlayerHealth(playerid, 100);
+					SetPlayerArmour(playerid, 100);
+
+					// Guns during the war time
+					GivePlayerWeaponSafe(playerid, WEAPON_DEAGLE, 50);
+					GivePlayerWeaponSafe(playerid, WEAPON_AK47, 90);
+					GivePlayerWeaponSafe(playerid, WEAPON_UZI, 120);
+
+				} else {
+					SetPlayerHealth(playerid, 100);
+					SetPlayerArmour(playerid, 0);
+				}
+
 				SetPlayerVirtualWorld(playerid, 0);
 				SetPlayerInterior(playerid, 0);
 
@@ -3496,13 +3609,16 @@ public OnPlayerSpawn(playerid)
 						if (playerData[playerid][account_rank] == 1) {
 							GivePlayerWeaponSafe(playerid, WEAPON_NITESTICK, 1);
 							GivePlayerWeaponSafe(playerid, WEAPON_COLT45, 250);
+							GivePlayerWeaponSafe(playerid, WEAPON_AK47, 250);
 						} else if (playerData[playerid][account_rank] == 2) {
 							GivePlayerWeaponSafe(playerid, WEAPON_NITESTICK, 1);
 							GivePlayerWeaponSafe(playerid, WEAPON_DEAGLE, 250);
+							GivePlayerWeaponSafe(playerid, WEAPON_AK47, 250);
 						} else if (playerData[playerid][account_rank] == 3) {
 							GivePlayerWeaponSafe(playerid, WEAPON_NITESTICK, 1);
 							GivePlayerWeaponSafe(playerid, WEAPON_DEAGLE, 250);
 							GivePlayerWeaponSafe(playerid, WEAPON_SHOTGSPA, 250);
+							GivePlayerWeaponSafe(playerid, WEAPON_AK47, 250);
 						} else if (playerData[playerid][account_rank] == 4) {
 							GivePlayerWeaponSafe(playerid, WEAPON_NITESTICK, 1);
 							GivePlayerWeaponSafe(playerid, WEAPON_DEAGLE, 250);
@@ -3638,7 +3754,7 @@ public OnPlayerSpawn(playerid)
 
 			new temp[64];
 
-			new PlayerText:temp_td_title = CreatePlayerTextDraw(playerid,633.000000, 413.000000, "Greek Roleplay Server - rpg.greeksamp.info");
+			new PlayerText:temp_td_title = CreatePlayerTextDraw(playerid,633.000000, 413.000000, "Greek Roleplay Server - www.greeksamp.info");
 			PlayerTextDrawAlignment(playerid,temp_td_title, 3);
 			PlayerTextDrawBackgroundColor(playerid,temp_td_title, 255);
 			PlayerTextDrawFont(playerid,temp_td_title, 1);
@@ -3689,6 +3805,8 @@ public OnPlayerSpawn(playerid)
 			playerData[playerid][robbing_money] = 0;
 			RemovePlayerAttachedObject(playerid, 1);
 			DisablePlayerCheckpoint(playerid);
+
+			TXDInfoMessage_update(playerid, "");
 		}
 
 		playerData[playerid][tracking_mode] = 0;
@@ -3838,6 +3956,25 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 				if (isWarTime() && playerData[killerid][account_clan] != 0 && playerData[playerid][account_clan] != 0) {
 
+					// Kill during War (for hitmen)
+					new temp_free_index = -1;
+					for(new i; i<sizeof(HEAL_PICKUPS); i++) {
+						if (HEAL_PICKUPS[i] == 0) {
+							temp_free_index = i;
+						}
+					}
+
+					if (temp_free_index != -1) {
+
+						new Float:temp_px, Float:temp_py, Float:temp_pz;
+						GetPlayerPos(playerid, temp_px, temp_py, temp_pz);
+
+						HEAL_PICKUPS[temp_free_index] = CreateDynamicPickup(1240, 8, temp_px, temp_py, temp_pz);
+					}
+
+					playerData[killerid][clan_war_kills]++;
+
+					
 				} else {
 					reportCrime(killerid, 1, "Murdering a player");
 
@@ -3854,6 +3991,24 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 			} else {
 				if (isWarTime() && playerData[killerid][account_clan] != 0 && playerData[playerid][account_clan] != 0) {
+
+					// Kill during War
+					new temp_free_index = -1;
+					for(new i; i<sizeof(HEAL_PICKUPS); i++) {
+						if (HEAL_PICKUPS[i] == 0) {
+							temp_free_index = i;
+						}
+					}
+
+					if (temp_free_index != -1) {
+						
+						new Float:temp_px, Float:temp_py, Float:temp_pz;
+						GetPlayerPos(playerid, temp_px, temp_py, temp_pz);
+
+						HEAL_PICKUPS[temp_free_index] = CreateDynamicPickup(1240, 8, temp_px, temp_py, temp_pz);
+					}
+
+					playerData[killerid][clan_war_kills]++;
 
 				} else {
 
@@ -3880,13 +4035,16 @@ public OnPlayerDeath(playerid, killerid, reason)
 				new Float:temp_px, Float:temp_py, Float:temp_pz;
 				GetPlayerPos(playerid, temp_px, temp_py, temp_pz);
 
-				new temp_free_index;
+				new temp_free_index = -1;
 				for(new i; i<sizeof(HEAL_PICKUPS); i++) {
 					if (HEAL_PICKUPS[i] == 0) {
 						temp_free_index = i;
 					}
 				}
-				HEAL_PICKUPS[temp_free_index] = CreateDynamicPickup(1240, 8, temp_px, temp_py, temp_pz);
+
+				if (temp_free_index != -1) {
+					HEAL_PICKUPS[temp_free_index] = CreateDynamicPickup(1240, 8, temp_px, temp_py, temp_pz);
+				}
 			}
 		}
 
@@ -4235,6 +4393,12 @@ public OnPlayerEnterCheckpoint(playerid)
 		format(temp, sizeof(temp), "Collected Money: $%s.", formatMoney(playerData[playerid][robbing_money]));
 		SendClientMessage(playerid, COLOR_INFO, temp);
 		giveMoney(playerid, playerData[playerid][robbing_money]);
+
+		new query_temp[256];
+		format(query_temp, sizeof(query_temp), "**%s** completed the Robbery and earned $%s!", playerData[playerid][account_name], formatMoney(playerData[playerid][robbing_money]));
+		mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
+		mysql_query(Database, query_temp, false);
+
 		playerData[playerid][robbing_state] = 0;
 		playerData[playerid][robbing_money] = 0;
 		RemovePlayerAttachedObject(playerid, 1);
@@ -4594,6 +4758,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 					for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
 						if (playerData[i][logged] == 1 && playerData[i][account_clan] == playerData[playerid][account_clan]) {
 							SendClientMessage(i, 0xd8c2a9FF, temp);
+							giveMoney(i, 250);
 						}
 					}
 					format(temp, sizeof(temp), "* We have lost turf (%d) by %s.", turfData[temp_turf_id][turf_id], playerData[playerid][account_name]);
@@ -4619,6 +4784,8 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 					SetObjectMaterialText(turfData[temp_turf_id][turf_object_id], turfData[temp_turf_id][turf_owner_clanName], 0, OBJECT_MATERIAL_SIZE_512x512, "Arial", 35, 1, 0xFFFF0000, 0x00000000, 0);
 
 					TXDInfoMessage_update(playerid, "");
+
+					playerData[playerid][clan_war_sprays]++;
 
 					reportCrime(playerid, 1, "Spraying Public Wall");
 
@@ -4733,7 +4900,14 @@ public OnPlayerPickUpDynamicPickup(playerid, pickupid)
 	for (new i; i < sizeof(HEAL_PICKUPS); i++) {
 		if (HEAL_PICKUPS[i] == pickupid) {
 			DestroyDynamicPickup(pickupid);
-			SetPlayerHealth(playerid, 100.0);
+
+			new Float: tempH;
+			GetPlayerHealth(playerid, tempH);
+
+			if (tempH < 80) {
+				SetPlayerHealth(playerid, tempH + 25);
+			}
+
 			HEAL_PICKUPS[i] = 0;
 		}
 	}
@@ -5199,6 +5373,13 @@ CMD:helpers(playerid,params[])
 
 CMD:shop(playerid, params[])
 {
+	if (playerData[playerid][account_jailed] > 0) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail.")
+	} else if (playerData[playerid][account_escaped] == 1) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are escaping.");
+	} else if (playerData[playerid][robbing_state] > 0) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are robbing.");
+	}
 	
 	new temp[546];
 
@@ -6176,6 +6357,16 @@ Dialog:DLG_BUYGUN(playerid, response, listitem, inputtext[])
 					} else if (playerData[playerid][account_score] < BUYGUNS[i][1]) {
 						SendClientMessage(playerid, COLOR_SERVER, "Error: Your score is not enough for this weapon.");
 					} else {
+
+						if (BUYGUNS[i][0] == 35) {
+							new weapon_rpg[2];
+							GetPlayerWeaponData(playerid, 7, weapon_rpg[0], weapon_rpg[1]);
+							if (weapon_rpg[1] >= 2) {
+								SendClientMessage(playerid, COLOR_SERVER, "Error: You can not hold more ammo of that weapon.");
+								break;
+							}
+						}
+
 						GivePlayerWeaponSafe(playerid, BUYGUNS[i][0], BUYGUNS[i][2]);
 						new temp[256];
 						format(temp, sizeof(temp), "You bought the weapon %s for $%s.", GunNames[BUYGUNS[i][0]], formatMoney(BUYGUNS[i][3]));
@@ -7452,7 +7643,7 @@ CMD:ahelp(playerid,params[])
 	SendClientMessage(playerid, 0xB4B5B7FF, "*1* ADMIN *** /pm /spec(off) /getweapons");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*2* ADMIN *** /gethere /cc /check /respawn /(un)freeze");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*3* ADMIN *** /stoppaintball /sethp /setarmour");
-	SendClientMessage(playerid, 0xB4B5B7FF, "*4* ADMIN *** /togcolorchat /sinvite /rac /setskin /setjail /makeleader /givescoreall /givemoneyall");
+	SendClientMessage(playerid, 0xB4B5B7FF, "*4* ADMIN *** /togcolorchat /sinvite /rac /setskin /setjail /makeleader /givescoreall /givemoneyall /healall");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*5* ADMIN *** /tagchat /makehelper /reloadbiz /reloadhouses /reloadcars /setmoney /reloadclans /addhouse /togmodechat");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*6* ADMIN *** /makeadmin /kickall");
 
@@ -10000,6 +10191,22 @@ CMD:givemoneyall(playerid, params[])
 	return 1;
 }
 
+CMD:healall(playerid, params[])
+{
+	if(playerData[playerid][account_admin] < 4 && !IsPlayerAdmin(playerid)) {
+		return 0;
+	} else {
+		new temp[128];
+		format(temp,sizeof(temp), "Admin %s has healed up all players.", playerData[playerid][account_name]);
+		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+			if (playerData[i][logged]) {
+				SendClientMessage(i, 0x1dcedbFF, temp);
+				SetPlayerHealth(i, 100);
+			}
+		}
+	}
+	return 1;
+}
 
 
 CMD:setjail(playerid, params[])
@@ -10124,6 +10331,16 @@ CMD:forcepayday(playerid, params[])
 		return 0;
 	} else {
 		FORCE_PAYDAY = true;
+	}
+	return 1;
+}
+
+CMD:forcewartime(playerid, params[])
+{
+	if(!IsPlayerAdmin(playerid)) {
+		return 0;
+	} else {
+		FORCE_WARTIME = !FORCE_WARTIME;
 	}
 	return 1;
 }
@@ -10649,6 +10866,12 @@ CMD:animlist(playerid,params[])
 	return 1;
 }
 
+
+CMD:animhelp(playerid, params[]) {
+	return cmd_animlist(playerid, params);
+}
+
+
 CMD:animlist2(playerid,params[])
 {
 	SendClientMessage(playerid,-1,"/follow /greet /stand /injured2 /piss");
@@ -10872,22 +11095,31 @@ stock getTimeString(part = 3){
 
 stock isWarTime()
 {
-	new H,m,s;
-	new Year, Month, Day;
-	gettime(H, m, s);
-	getdate(Year, Month, Day);
-	H += serverTimeZoneKey;
-	if (H == 24) {
-		H = 0;
-		Day = Day + 1;
-		if(Day > Cal_Month(Month, Year)) {
-			Day = 1;
-		}
-	}
-	if ( (H == 20 && (m >= 0 && m < 30)) || (H == 15 && (m >= 0 && m < 30)) ) {
+
+	if (FORCE_WARTIME) {
+	
 		return true;
+	
+	} else {
+		
+		new H,m,s;
+		new Year, Month, Day;
+		gettime(H, m, s);
+		getdate(Year, Month, Day);
+		H += serverTimeZoneKey;
+		if (H == 24) {
+			H = 0;
+			Day = Day + 1;
+			if(Day > Cal_Month(Month, Year)) {
+				Day = 1;
+			}
+		}
+		if ( (H == 20 && (m >= 0 && m < 30)) || (H == 15 && (m >= 0 && m < 30)) ) {
+			return true;
+		}
+		return false;
+		
 	}
-	return false;
 }
 
 stock formatMoney(iNum, const szChar[] = ".")
@@ -11822,7 +12054,7 @@ stock IsALetter(string)
 stock isGreeklish(word[])
 {
 	for(new i; i<strlen(word); i++){
-		if(!IsALetter(word[i]) && word[i] != '-' && word[i] != '+' && word[i] != '&' && word[i] != '`' && word[i] != '~' && word[i] != '_' && word[i] != '!' && word[i] != '"' && word[i] != '*' && word[i] != ',' && word[i] != '.'  && word[i] != ':' && word[i] != '?' && word[i] != '$' && word[i] != '%' && word[i] != '(' && word[i] != ')' && word[i] != '/' && word[i] != '{' && word[i] != '}' && word[i] != '[' && word[i] != ']' && word[i] != '<' && word[i] != '>' && word[i] != ' ') return false;
+		if(!IsALetter(word[i]) && word[i] != '#' && word[i] != '-' && word[i] != '+' && word[i] != '&' && word[i] != '`' && word[i] != '~' && word[i] != '_' && word[i] != '!' && word[i] != '"' && word[i] != '*' && word[i] != ',' && word[i] != '.'  && word[i] != ':' && word[i] != '?' && word[i] != '$' && word[i] != '%' && word[i] != '(' && word[i] != ')' && word[i] != '/' && word[i] != '{' && word[i] != '}' && word[i] != '[' && word[i] != ']' && word[i] != '<' && word[i] != '>' && word[i] != ' ') return false;
 	}
 	return true;
 }
