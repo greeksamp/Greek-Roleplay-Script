@@ -9359,8 +9359,8 @@ CMD:buybiz(playerid, params[])
 			temp_biz_numbers += 1;
 		}
 	}
-	if (temp_biz_numbers >= 4) {
-		return SendClientMessage(playerid, COLOR_SERVER, "Error: You already have 4 businesses.");
+	if (temp_biz_numbers >= 5) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You already have 5 businesses.");
 	}
 
 	for (new i; i < MAX_BIZ; i++) {
