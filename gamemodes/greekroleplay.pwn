@@ -9654,9 +9654,24 @@ CMD:acceptcar(playerid, params[])
 					SendClientMessage(playerid, COLOR_INFO, temp);
 
 					format(temp, sizeof(temp), "You sold your %s to %s for $%s. Congratulations!", VehicleNames[GetVehicleModel(vehicleid) - 400], playerData[playerid][account_name], formatMoney(playerData[temp_id][sellcar_price]));
-					SendClientMessage(playerid, COLOR_INFO, temp);
+					SendClientMessage(temp_id, COLOR_INFO, temp);
+
+					PlayerPlaySound(playerid, 182, 0.0,0.0,0.0);
+					SetTimerEx("stopPlayerSound", 7400, 0, "i", playerid);
+
+					PlayerPlaySound(temp_id, 182, 0.0,0.0,0.0);
+					SetTimerEx("stopPlayerSound", 7400, 0, "i", temp_id);
+
+					giveMoney(playerid, -playerData[temp_id][sellcar_price]);
+					giveMoney(temp_id, playerData[temp_id][sellcar_price]);
 
 					playerData[temp_id][sellcar_price] = 0;
+
+
+					GetPlayerPos(temp_id, temp_x, temp_y, temp_z);
+					SetPlayerPos(temp_id, temp_x, temp_y, temp_z+4);
+					TogglePlayerControllable(temp_id, 1);
+					ClearAnimations(temp_id);
 
 					unloadPlayerVehicles(playerid);
 					loadPlayerVehicles(playerid, 0);
@@ -10097,7 +10112,7 @@ CMD:slap(playerid, params[])
 			GetPlayerPos(temp_id, temp_x, temp_y, temp_z);
 			SetPlayerPos(temp_id, temp_x, temp_y, temp_z+4);
 			TogglePlayerControllable(temp_id, 1);
-			ClearAnimations(playerid);
+			ClearAnimations(temp_id);
 		}
 	}
 	return 1;
