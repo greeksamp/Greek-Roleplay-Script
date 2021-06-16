@@ -12,6 +12,7 @@
 #include "import/a_izcmd.inc"
 #include "import/a_timestamp.inc"
 #include "import/a_streamer.inc"
+#include "import/a_zones.inc"
 
 #include "import/rpg_anim.inc"
 // #include "import/rpg_greek_flag.inc"
@@ -51,22 +52,37 @@ new FORCE_WARTIME = false;
 #define IsPlayerAfk(%0) (playerData[%0][playerTick]+1000 < GetTickCount())
 
 #if !defined isnull
-    #define isnull(%1) ((!(%1[0])) || (((%1[0]) == '\1') && (!(%1[1]))))
+	#define isnull(%1) ((!(%1[0])) || (((%1[0]) == '\1') && (!(%1[1]))))
 #endif
 
 new passHashSalt[32];
 new radioHashSalt[32];
 
-#define COLOR_SERVER    0xe6e6e6FF
-#define COLOR_SYNTAX    0x9c9c9cFF
-#define COLOR_PUBLIC    0x74ad61FF
-#define COLOR_PM	    0xf3fa6bFF
-#define COLOR_ADMIN	    0xb3a462FF
-#define COLOR_FACTION   0x666fb0FF
-#define COLOR_PAINTBALL 0x1adbc1FF
-#define COLOR_INFO		0x87a0c9FF
-#define COLOR_BADINFO	0xbd7575FF
-#define COLOR_PUNISH	0xcf4f2bFF
+
+new BANK_LS_ACTOR1;
+new BANK_LS_ACTOR2;
+new BANK_LS_ACTOR3;
+new BANK_LS_ACTOR4;
+new BANK_LS_ACTORS_ATTACKED = 0;
+
+new BANK_SF_ACTOR1;
+new BANK_SF_ACTOR2;
+new BANK_SF_ACTOR3;
+new BANK_SF_ACTOR4;
+new BANK_SF_ACTORS_ATTACKED = 0;
+
+
+#define COLOR_SERVER    		0xe6e6e6FF
+#define COLOR_SYNTAX    		0x9c9c9cFF
+#define COLOR_PUBLIC    		0x74ad61FF
+#define COLOR_PM	    		0xf3fa6bFF
+#define COLOR_ADMIN	    		0xddb781FF
+#define COLOR_ADMIN_WRN 		0xe3363fFF
+#define COLOR_FACTION   		0x666fb0FF
+#define COLOR_PAINTBALL 		0x1adbc1FF
+#define COLOR_INFO				0x87a0c9FF
+#define COLOR_BADINFO			0xbd7575FF
+#define COLOR_PUNISH			0xcf4f2bFF
 
 #define FACTION_CIVIL  0
 #define FACTION_TAXILS 1
@@ -80,6 +96,8 @@ new radioHashSalt[32];
 #define INTERIOR_BANK_SF	3
 
 #define CARMODTYPE_PAINTJOB 50
+
+#define WANTED_STAR_DURATION	100
 
 #define ROB_PER_CITY_COOL	900
 
@@ -95,7 +113,7 @@ new INFOMESSAGES[][] = {
 	"{e1ebe9}Info: Find all /biz and /locations.",
 	"{e1ebe9}Info: Check the online /admins and send them a /report.",
 	"{e1ebe9}Info: Check the online /helpers and ask them if you need any help.",
-	"{e1ebe9}Info: Join our discord server:  www.greeksamp.info!",
+	"{e1ebe9}Info: Join our discord server: www.greeksamp.info!",
 	"{e1ebe9}Info: All commands for your vehicles are in /carhelp.",
 	"{e1ebe9}Info: All commands for your house are in /househelp.",
 	"{e1ebe9}Info: Do you want to join a faction? Contact a leader on our discord server.",
@@ -357,6 +375,7 @@ new questData[MAX_PLAYERS][sizeof(QUESTPOINTS)];
 new BUYGUNS[][] = {
 	// weapon id	min score	ammo	price
 	{1,			25,			1,			560},
+	{4,			5,			1,			50},
 	{8,			2,			1,			400},
 	{9,			2,			1,			450},
 	{22,		5,			150,		200},
@@ -532,6 +551,17 @@ enum pEnum {
 	PlayerText:carIntrumentOdometer,			// Car Instruments
 	PlayerText:loadScreen_txd,					// Loading Screen TXD
 	PlayerText:infoMessage_txd,					// Info Message middle Screen
+	PlayerText:wantedLeft_txd,					// Wanted Time left, under wanted stars
+	PlayerText:wantedPlayers_txd,				// Wanted Players for PD
+	megaphone_cooldown,							// Cooldown for /megaphone
+	PlayerText:startRace_bg_txd,				// Start Race Textdarw
+	PlayerText:startRace_title_txd,				// Start Race Textdarw
+	PlayerText:startRace_a_txd,			    	// Start Race Textdarw
+	PlayerText:startRace_b_txd,			    	// Start Race Textdarw
+	PlayerText:startRace_c_txd,			    	// Start Race Textdarw
+	startRace_active,							// I am in race
+	startRace_by,								// I am in race created by
+	startRace_cooldown,						    // Cooldown for /startrace
 
 
 
@@ -1021,6 +1051,20 @@ public loadBiz(step)
 
 			bizData[temp_count][biz_3D] = Create3DTextLabel(temp, 0xFFFFFFFF, bizData[temp_count][biz_x], bizData[temp_count][biz_y], bizData[temp_count][biz_z], 30.0, 0, 0);
 
+			if (bizData[temp_count][biz_type] == BIZ_TYPE_BANKLS) {
+				SetActorVirtualWorld(BANK_LS_ACTOR1, 1000 + bizData[temp_count][biz_id]);
+				SetActorVirtualWorld(BANK_LS_ACTOR2, 1000 + bizData[temp_count][biz_id]);
+				SetActorVirtualWorld(BANK_LS_ACTOR3, 1000 + bizData[temp_count][biz_id]);
+				SetActorVirtualWorld(BANK_LS_ACTOR4, 1000 + bizData[temp_count][biz_id]);
+			}
+
+			if (bizData[temp_count][biz_type] == BIZ_TYPE_BANKSF) {
+				SetActorVirtualWorld(BANK_SF_ACTOR1, 1000 + bizData[temp_count][biz_id]);
+				SetActorVirtualWorld(BANK_SF_ACTOR2, 1000 + bizData[temp_count][biz_id]);
+				SetActorVirtualWorld(BANK_SF_ACTOR3, 1000 + bizData[temp_count][biz_id]);
+				SetActorVirtualWorld(BANK_SF_ACTOR4, 1000 + bizData[temp_count][biz_id]);
+			}
+
 			temp_count++;
 		}
 
@@ -1125,16 +1169,16 @@ public loadHouses(step)
 forward DelayedKick(playerid);
 public DelayedKick(playerid)
 {
-    Kick(playerid);
-    return 1;
+	Kick(playerid);
+	return 1;
 }
 
 
 forward DelayedBan(playerid);
 public DelayedBan(playerid)
 {
-    Ban(playerid);
-    return 1;
+	Ban(playerid);
+	return 1;
 }
 
 forward setNameAFK(playerid, yesno);
@@ -1310,7 +1354,7 @@ public connectPlayer(playerid)
 
 Dialog:DLG_LOGIN_PASSWORD(playerid, response, listitem, inputtext[])
 {
-    if (response) {
+	if (response) {
 
 		new temp[364];
 		SHA256_PassHash(inputtext, passHashSalt, temp, sizeof(temp));
@@ -1318,7 +1362,12 @@ Dialog:DLG_LOGIN_PASSWORD(playerid, response, listitem, inputtext[])
 			playerData[playerid][logged] = 1;
 			playerData[playerid][account_online] = 1;
 			playerData[playerid][account_lastLogin] = gettime();
+			
 			PlayerPlaySound(playerid, 0, 0.0,0.0,0.0);
+
+			PlayerPlaySound(playerid, 182, 0.0,0.0,0.0);
+			replacePlayerSound(playerid, 0, 7400)
+
 			orm_update(playerData[playerid][ORM_ID]);
 			format(temp, sizeof(temp),"INSERT INTO `logs` (`log_player`, `log_type`, `log_info`) VALUES ('%d', 'login', '{\"login\":%d, \"ip\":\"%s\"}')", playerData[playerid][account_id], gettime(), playerData[playerid][ip_address]);
 			mysql_query(Database, temp, false);
@@ -1391,17 +1440,17 @@ Dialog:DLG_LOGIN_PASSWORD(playerid, response, listitem, inputtext[])
 			Dialog_Show(playerid, DLG_LOGIN_PASSWORD, DIALOG_STYLE_PASSWORD, "Login", temp, "Play", "Quit");
 		}
 
-    } else {
+	} else {
 		SendClientMessage(playerid, COLOR_SERVER, "Ok, bye!");
 		SetTimerEx("DelayedKick", 1000, 0, "i", playerid);
 		printf("Kick: Player %d closed the login dialog.", playerid);
 	}
-    return 1;
+	return 1;
 }
 
 Dialog:DLG_REGISTER_PASSWORD(playerid, response, listitem, inputtext[])
 {
-    if (response) {
+	if (response) {
 		if (!isnull(inputtext)) {
 			new temp[256];
 			SHA256_PassHash(inputtext, passHashSalt, temp, sizeof(temp));
@@ -1414,17 +1463,17 @@ Dialog:DLG_REGISTER_PASSWORD(playerid, response, listitem, inputtext[])
 			format(temp, sizeof(temp), "\nWelcome %s.\n\nRegister your name with us. Set a strong password to protect your new account.\n", playerData[playerid][account_name]);
 			Dialog_Show(playerid, DLG_REGISTER_PASSWORD, DIALOG_STYLE_PASSWORD, "Register: New password", temp, "Next", "Quit");
 		}
-    } else {
+	} else {
 		SendClientMessage(playerid, COLOR_SERVER, "Ok, bye!");
 		SetTimerEx("DelayedKick", 1000, 0, "i", playerid);
 		printf("Kick: Player %d closed the registration dialog (new password).", playerid);
 	}
-    return 1;
+	return 1;
 }
 
 Dialog:DLG_REGISTER_EMAIL(playerid, response, listitem, inputtext[])
 {
-    if (response) {
+	if (response) {
 		if (!isValidEmail(inputtext)) {
 			new temp[256];
 			format(temp, sizeof(temp), "\nIt is really important that you save a valid email address for your account.\n");
@@ -1453,14 +1502,14 @@ Dialog:DLG_REGISTER_EMAIL(playerid, response, listitem, inputtext[])
 
 			PlayerPlaySound(playerid, 0, 0.0,0.0,0.0);
 		}
-    } else {
+	} else {
 		SendClientMessage(playerid, COLOR_SERVER, "Ok, bye!");
 		SetTimerEx("DelayedKick", 1000, 0, "i", playerid);
 		printf("Kick: Player %d closed the registration dialog (new email).", playerid);
 
 		
 	}
-    return 1;
+	return 1;
 }
 
 forward registerComplete(playerid);
@@ -1524,11 +1573,13 @@ public giveMoney(playerid, amount)
 	return true;
 }
 
-forward stopPlayerSound(playerid);
-public stopPlayerSound(playerid)
-{
-	PlayerPlaySound(playerid, 0, 0.0,0.0,0.0);
-}
+
+// We use replacePlayerSound(playerid, new_sound, in_seconds) now
+// forward stopPlayerSound(playerid);
+// public stopPlayerSound(playerid)
+// {
+// 	PlayerPlaySound(playerid, 0, 0.0,0.0,0.0);
+// }
 
 forward initRac();
 public initRac()
@@ -1599,6 +1650,18 @@ public serverInterval()
 
 	new pd_near_gate;
 
+
+	new count_wanted_players = 0;
+	new count_wanted_players_str[32];
+	for(new v = 0, j = GetPlayerPoolSize(); v <= j; v++) {
+		if (playerData[v][account_wanted] > 0 && playerData[v][logged] == 1) {
+			count_wanted_players++;
+		}
+	}
+	if (count_wanted_players > 0) {
+		format(count_wanted_players_str, sizeof(count_wanted_players_str), "WANTED PLAYERS: %d", count_wanted_players);
+	}
+
 	////////////////
 	// MAIN INTERVAL
 	////////////////
@@ -1619,6 +1682,20 @@ public serverInterval()
 				playerData[playerid][buycar_state] = 1;
 				buyCar_show(playerid);
 			}
+		}
+
+		if (playerData[playerid][account_faction] == FACTION_LSPD) {
+			if (count_wanted_players != 0) {
+
+				TXDWantedPlayers_update(playerid, count_wanted_players_str);
+
+			} else {
+
+				TXDWantedPlayers_update(playerid, "");
+
+			}
+		} else {
+			TXDWantedPlayers_update(playerid, "");
 		}
 
 		if (playerData[playerid][am_stream_camera] > 0) {
@@ -1708,6 +1785,11 @@ public serverInterval()
 					SendClientMessage(playerid, 0x00C3FFFF, "You have received 1 Score Point.");
 
 					GameTextForPlayer(playerid, "~y~Payday~n~~w~Time to get Paid", 3000, 1);
+
+					if (playerData[playerid][account_bank] < playerData[playerid][account_money] && playerData[playerid][account_money] > 10000) {
+						SendClientMessage(playerid, -1, "");
+						SendClientMessage(playerid, -1, "* You should /deposit your money to your bank account to earn more bank interest.");
+					}
 				}
 			}
 
@@ -1926,6 +2008,27 @@ public serverInterval()
 				for (new i = 0 ; i < MAX_TURFS ; i++) {
 					if (turfData[i][turf_id] == 0) continue;
 					GangZoneShowForPlayer(playerid, turfData[i][turf_gangzone], clanColors(turfData[i][turf_color]));
+				}
+
+				if (playerData[playerid][special_interior] == INTERIOR_BANK_LS || playerData[playerid][special_interior] == INTERIOR_BANK_SF) {
+					new target_actor = GetPlayerTargetActor(playerid);
+
+					if (target_actor != INVALID_ACTOR_ID && GetPlayerWeapon(playerid) != -1 && GetPlayerWeapon(playerid) != WEAPON_BRASSKNUCKLE && GetPlayerWeapon(playerid) != WEAPON_FLOWER) {
+						
+						if (target_actor == BANK_LS_ACTOR1 || target_actor == BANK_LS_ACTOR2 || target_actor == BANK_LS_ACTOR3 || target_actor == BANK_LS_ACTOR4) {
+
+							startBankRob(playerid);
+
+						}
+
+						if (target_actor == BANK_SF_ACTOR1 || target_actor == BANK_SF_ACTOR2 || target_actor == BANK_SF_ACTOR3 || target_actor == BANK_SF_ACTOR4) {
+
+							startBankRob(playerid);
+
+						}
+
+
+					}
 				}
 
 				// No more active, since clan Tags
@@ -2180,10 +2283,10 @@ public serverInterval()
 				playerData[playerid][wanted_last_3D] = playerData[playerid][account_wanted];
 			}
 
-			if (playerData[playerid][account_wanted] > 0 && IsPlayerAttachedObjectSlotUsed(playerid, 2) == 0) {
+			if (playerData[playerid][account_wanted] > 0) {
 				if (playerData[playerid][wanted_last] != playerData[playerid][account_wanted]) {
 					playerData[playerid][wanted_last] = playerData[playerid][account_wanted];
-					playerData[playerid][wanted_seconds] = 100;
+					playerData[playerid][wanted_seconds] = WANTED_STAR_DURATION;
 					SetPlayerWantedLevel(playerid, playerData[playerid][account_wanted]);
 				} else {
 					playerData[playerid][wanted_seconds]--;
@@ -2193,12 +2296,27 @@ public serverInterval()
 						new temp[128];
 						if (playerData[playerid][account_wanted] == 0) {
 							format(temp, sizeof(temp), "Player %s is no wanted anymore.", playerData[playerid][account_name]);
+							SendClientMessage(playerid, COLOR_BADINFO, "You are no longer wanted.");
 						} else {
 							format(temp, sizeof(temp), "Player %s is less wanted now. Current Wanted Level: %d", playerData[playerid][account_name], playerData[playerid][account_wanted]);
 						}
 						SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
 					}
 				}
+
+				new wanted_left_temp[64];
+				new Float:minutes_left = (((playerData[playerid][account_wanted] - 1) * WANTED_STAR_DURATION) + playerData[playerid][wanted_seconds]) / 60;
+
+				if (minutes_left >= 1) {
+					format(wanted_left_temp, sizeof(wanted_left_temp), "WANTED TIME LEFT: %.0f min", minutes_left);
+					TXDWantedLeft_update(playerid, wanted_left_temp);
+				} else {
+					format(wanted_left_temp, sizeof(wanted_left_temp), "WANTED TIME LEFT: %d sec", playerData[playerid][wanted_seconds]);
+					TXDWantedLeft_update(playerid, wanted_left_temp);
+				}
+
+			} else {
+				TXDWantedLeft_update(playerid, "");
 			}
 			SetPlayerWantedLevel(playerid, playerData[playerid][account_wanted]);
 
@@ -2336,6 +2454,49 @@ public serverInterval()
 			}
 		}
 		
+	}
+
+
+	if (BANK_LS_ACTORS_ATTACKED == 1) {
+
+		new players_in_bank = 0;
+		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+			if (playerData[i][special_interior] == INTERIOR_BANK_LS) {
+				players_in_bank = 1;
+				break;
+			}
+		}
+
+		if (players_in_bank == 0) {
+			ApplyActorAnimation(BANK_LS_ACTOR1, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+			ApplyActorAnimation(BANK_LS_ACTOR2, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+			ApplyActorAnimation(BANK_LS_ACTOR3, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+			ApplyActorAnimation(BANK_LS_ACTOR4, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+
+			BANK_LS_ACTORS_ATTACKED = 0;
+		}
+
+	}
+
+	if (BANK_SF_ACTORS_ATTACKED == 1) {
+
+		new players_in_bank = 0;
+		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+			if (playerData[i][special_interior] == INTERIOR_BANK_SF) {
+				players_in_bank = 1;
+				break;
+			}
+		}
+
+		if (players_in_bank == 0) {
+			ApplyActorAnimation(BANK_SF_ACTOR1, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+			ApplyActorAnimation(BANK_SF_ACTOR2, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+			ApplyActorAnimation(BANK_SF_ACTOR3, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+			ApplyActorAnimation(BANK_SF_ACTOR4, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+
+			BANK_SF_ACTORS_ATTACKED = 0;
+		}
+
 	}
 
 
@@ -2607,47 +2768,47 @@ public OnGameModeInit()
 
 		format(SCRIPT_VERSION, sizeof(SCRIPT_VERSION), "%s", dini_Get(CONFIG_INI, "Version"));
 
-        format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "GameModeText"));
-        printf("Setting GameModeText from %s to %s", CONFIG_INI, temp);
-        SetGameModeText(temp);
+		format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "GameModeText"));
+		printf("Setting GameModeText from %s to %s", CONFIG_INI, temp);
+		SetGameModeText(temp);
 
-        format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "HostName"));
-        format(temp, sizeof(temp), "hostname %s", temp);
-        printf("Setting HostName from %s to %s", CONFIG_INI, temp);
-        SendRconCommand(temp);
-        
-        format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "MapName"));
-        format(temp, sizeof(temp), "mapname %s", temp);
-        printf("Setting MapName from %s to %s", CONFIG_INI, temp);
-        SendRconCommand(temp);
+		format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "HostName"));
+		format(temp, sizeof(temp), "hostname %s", temp);
+		printf("Setting HostName from %s to %s", CONFIG_INI, temp);
+		SendRconCommand(temp);
+		
+		format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "MapName"));
+		format(temp, sizeof(temp), "mapname %s", temp);
+		printf("Setting MapName from %s to %s", CONFIG_INI, temp);
+		SendRconCommand(temp);
 
-        format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "WebUrl"));
-        format(temp, sizeof(temp), "weburl %s", temp);
-        printf("Setting WebUrl from %s to %s", CONFIG_INI, temp);
-        SendRconCommand(temp);
+		format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "WebUrl"));
+		format(temp, sizeof(temp), "weburl %s", temp);
+		printf("Setting WebUrl from %s to %s", CONFIG_INI, temp);
+		SendRconCommand(temp);
 
-        format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "Language"));
-        format(temp, sizeof(temp), "language %s", temp);
-        printf("Setting Language from %s to %s", CONFIG_INI, temp);
-        SendRconCommand(temp);
+		format(temp, sizeof(temp), "%s", dini_Get(CONFIG_INI, "Language"));
+		format(temp, sizeof(temp), "language %s", temp);
+		printf("Setting Language from %s to %s", CONFIG_INI, temp);
+		SendRconCommand(temp);
 
 		format(passHashSalt, sizeof(passHashSalt), "%s", dini_Get(CONFIG_INI, "passHashSalt"));
 
 		format(radioHashSalt, sizeof(radioHashSalt), "%s", dini_Get(CONFIG_INI, "radioHashSalt"));
 
-        print("\n");
+		print("\n");
 
-        ShowNameTags(1);
+		ShowNameTags(1);
 
-        ShowPlayerMarkers(PLAYER_MARKERS_MODE_STREAMED);
+		ShowPlayerMarkers(PLAYER_MARKERS_MODE_STREAMED);
 
-        EnableStuntBonusForAll(0);
+		EnableStuntBonusForAll(0);
 
-        UsePlayerPedAnims();
+		UsePlayerPedAnims();
 
-        DisableInteriorEnterExits();
+		DisableInteriorEnterExits();
 
-        ManualVehicleEngineAndLights();
+		ManualVehicleEngineAndLights();
 	}
 
 	serverTimeZoneKey = dini_Int(CONFIG_INI, "serverTimeZoneKey");
@@ -2681,7 +2842,7 @@ public OnGameModeInit()
 	}
 
 	new temp[128];
-    format(temp, sizeof(temp),"UPDATE `accounts` SET `account_online` = '0' WHERE 1=1");
+	format(temp, sizeof(temp),"UPDATE `accounts` SET `account_online` = '0' WHERE 1=1");
 	mysql_query(Database, temp, false);
 	print("All Accounts have been set offline in the database.\n");
 
@@ -2767,17 +2928,17 @@ public OnGameModeInit()
 	BIZ_INTERIORS[BIZ_TYPE_GUNSHOP1][bi_interior] = 7;
 	format(BIZ_INTERIORS[BIZ_TYPE_GUNSHOP1][bi_name], 32, "Gun Shop");
 
-	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_x] = 2315.952880;
-	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_y] = -1.618174;
-	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_z] = 26.742187;
-	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_a] = 0.9421;
+	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_x] = 2305.6753;
+	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_y] = -15.9872;
+	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_z] = 26.7496;
+	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_a] = 272.9180;
 	BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_interior] = 0;
 	format(BIZ_INTERIORS[BIZ_TYPE_BANKLS][bi_name], 32, "Bank Los Santos");
 
-	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_x] = 2315.952880;
-	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_y] = -1.618174;
-	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_z] = 26.742187;
-	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_a] = 0.9421;
+	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_x] = 2305.6753;
+	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_y] = -15.9872;
+	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_z] = 26.7496;
+	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_a] = 272.9180;
 	BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_interior] = 0;
 	format(BIZ_INTERIORS[BIZ_TYPE_BANKSF][bi_name], 32, "Bank San Fierro");
 
@@ -2820,6 +2981,39 @@ public OnGameModeInit()
 	CreatePickup(1239, 1, 2770.7419,-1628.3348,12.1775, 0);
 	CreateDynamic3DTextLabel("/delivermaterials", 0xA6E9FFFF, 1712.9161,913.1354,10.8203, 10.0);
 	CreatePickup(1239, 1, 1712.9161,913.1354,10.8203, 0);
+
+
+
+
+	BANK_LS_ACTOR1 = CreateActor(150, 2318.6436,-15.0881,26.7496,93.2548);
+	BANK_LS_ACTOR2 = CreateActor(17, 2318.4575,-7.1388,26.7496,91.0614);
+	BANK_LS_ACTOR3 = CreateActor(169, 2309.5557,-9.6341,26.7422,356.2176);
+	BANK_LS_ACTOR4 = CreateActor(187, 2309.4209,-7.5601,26.7422,182.6293);
+
+	BANK_SF_ACTOR1 = CreateActor(148, 2318.6436,-15.0881,26.7496,93.2548);
+	BANK_SF_ACTOR2 = CreateActor(150, 2318.4575,-7.1388,26.7496,91.0614);
+	BANK_SF_ACTOR3 = CreateActor(186, 2309.5557,-9.6341,26.7422,356.2176);
+	BANK_SF_ACTOR4 = CreateActor(187, 2309.4209,-7.5601,26.7422,182.6293);
+
+	SetActorInvulnerable(BANK_LS_ACTOR1, true);
+	SetActorInvulnerable(BANK_LS_ACTOR2, true);
+	SetActorInvulnerable(BANK_LS_ACTOR3, true);
+	SetActorInvulnerable(BANK_LS_ACTOR4, true);
+	
+	SetActorInvulnerable(BANK_SF_ACTOR1, true);
+	SetActorInvulnerable(BANK_SF_ACTOR2, true);
+	SetActorInvulnerable(BANK_SF_ACTOR3, true);
+	SetActorInvulnerable(BANK_SF_ACTOR4, true);
+
+	ApplyActorAnimation(BANK_LS_ACTOR1, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+	ApplyActorAnimation(BANK_LS_ACTOR2, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+	ApplyActorAnimation(BANK_LS_ACTOR3, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+	ApplyActorAnimation(BANK_LS_ACTOR4, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+	
+	ApplyActorAnimation(BANK_SF_ACTOR1, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+	ApplyActorAnimation(BANK_SF_ACTOR2, "INT_OFFICE", "OFF_Sit_Type_Loop", 4.0, 1, 0, 0, 0, 0);
+	ApplyActorAnimation(BANK_SF_ACTOR3, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
+	ApplyActorAnimation(BANK_SF_ACTOR4, "PED", "IDLE_CHAT", 4.0, 1,1,1,1,1);
 
 
 	SPAWN_CIVIL_CARS[0] = CreateVehicle(510,1809.2808,-1867.0035,13.1810,357.8989,46,46, 300); // bike start
@@ -3065,98 +3259,98 @@ public OnGameModeInit()
 
 
 	new DM_Forest_Objs;
-    DM_Forest_Objs = CreateDynamicObject(18753,1857.966,3151.175,111.647,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    SetDynamicObjectMaterial(DM_Forest_Objs, 0, 10101, "2notherbuildsfe", "Bow_church_grass_alt", 0x00000000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1815.499,3092.869,110.227,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1893.557,3092.869,110.227,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1854.029,3092.869,110.227,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1915.923,3114.800,110.227,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1915.923,3153.941,110.227,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1916.383,3198.160,110.227,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1888.893,3198.160,110.227,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1850.025,3198.160,110.227,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1811.065,3198.160,110.227,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1791.296,3171.652,110.227,0.000,0.000,360.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1791.296,3132.901,110.227,0.000,0.000,360.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16118,1791.296,3094.131,110.227,0.000,0.000,360.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19909,1809.662,3123.444,112.127,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19909,1898.848,3154.929,112.127,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19909,1899.269,3169.323,112.127,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(3414,1897.490,3124.854,114.287,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19843,1891.563,3119.516,113.907,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19843,1891.563,3120.517,113.907,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19843,1891.563,3121.518,113.907,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19843,1891.573,3121.518,114.807,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19843,1891.573,3120.517,114.807,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19843,1891.573,3119.516,114.807,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(19909,1810.083,3137.832,112.127,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(3279,1812.102,3159.954,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(3279,1897.688,3111.813,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(1501,1856.225,3128.866,112.757,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(655,1846.249,3145.295,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(655,1870.759,3164.505,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(655,1828.319,3171.834,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(655,1821.899,3111.342,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(655,1886.219,3180.368,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1888.923,3131.463,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1876.914,3148.615,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1859.473,3180.316,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1864.814,3139.664,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1837.143,3135.465,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1863.193,3153.655,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1816.683,3176.747,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1831.021,3114.926,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1863.342,3106.808,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1870.344,3178.217,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1854.793,3163.472,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1853.896,3141.983,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3138.070,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.030,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3135.950,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3136.400,112.357,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.441,112.357,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3138.302,112.377,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.951,112.587,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3136.830,112.587,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3138.151,112.787,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.060,112.787,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.561,112.957,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3136.320,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3137.301,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3138.341,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3139.382,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3138.942,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3137.891,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3136.861,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3135.719,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3136.350,112.497,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3137.401,112.497,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3138.472,112.497,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3138.021,112.647,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3136.941,112.647,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3135.920,112.647,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3136.460,112.827,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3137.572,112.827,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(2669,1838.510,3187.089,113.447,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(17005,1851.106,3121.150,119.877,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(656,1829.104,3160.028,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1839.876,3172.964,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1839.876,3174.265,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1839.876,3174.265,113.067,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1839.876,3172.964,113.067,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1839.886,3175.587,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1888.162,3143.422,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1888.162,3144.723,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1888.162,3146.054,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3146.054,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3144.733,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3143.422,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3143.422,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3144.733,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3146.054,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1888.172,3146.054,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(964,1886.861,3142.091,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
-    DM_Forest_Objs = CreateDynamicObject(16280,1850.700,3174.022,115.947,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(18753,1857.966,3151.175,111.647,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	SetDynamicObjectMaterial(DM_Forest_Objs, 0, 10101, "2notherbuildsfe", "Bow_church_grass_alt", 0x00000000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1815.499,3092.869,110.227,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1893.557,3092.869,110.227,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1854.029,3092.869,110.227,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1915.923,3114.800,110.227,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1915.923,3153.941,110.227,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1916.383,3198.160,110.227,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1888.893,3198.160,110.227,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1850.025,3198.160,110.227,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1811.065,3198.160,110.227,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1791.296,3171.652,110.227,0.000,0.000,360.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1791.296,3132.901,110.227,0.000,0.000,360.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16118,1791.296,3094.131,110.227,0.000,0.000,360.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19909,1809.662,3123.444,112.127,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19909,1898.848,3154.929,112.127,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19909,1899.269,3169.323,112.127,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(3414,1897.490,3124.854,114.287,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19843,1891.563,3119.516,113.907,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19843,1891.563,3120.517,113.907,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19843,1891.563,3121.518,113.907,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19843,1891.573,3121.518,114.807,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19843,1891.573,3120.517,114.807,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19843,1891.573,3119.516,114.807,90.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(19909,1810.083,3137.832,112.127,0.000,0.000,180.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(3279,1812.102,3159.954,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(3279,1897.688,3111.813,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(1501,1856.225,3128.866,112.757,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(655,1846.249,3145.295,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(655,1870.759,3164.505,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(655,1828.319,3171.834,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(655,1821.899,3111.342,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(655,1886.219,3180.368,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1888.923,3131.463,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1876.914,3148.615,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1859.473,3180.316,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1864.814,3139.664,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1837.143,3135.465,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1863.193,3153.655,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1816.683,3176.747,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1831.021,3114.926,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1863.342,3106.808,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1870.344,3178.217,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1854.793,3163.472,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1853.896,3141.983,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3138.070,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.030,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3135.950,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3136.400,112.357,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.441,112.357,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3138.302,112.377,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.951,112.587,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3136.830,112.587,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3138.151,112.787,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.060,112.787,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1864.882,3137.561,112.957,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3136.320,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3137.301,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3138.341,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3139.382,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3138.942,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3137.891,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3136.861,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3135.719,112.327,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.610,3136.350,112.497,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3137.401,112.497,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3138.472,112.497,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3138.021,112.647,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3136.941,112.647,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3135.920,112.647,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3136.460,112.827,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2060,1837.630,3137.572,112.827,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(2669,1838.510,3187.089,113.447,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(17005,1851.106,3121.150,119.877,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(656,1829.104,3160.028,112.147,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1839.876,3172.964,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1839.876,3174.265,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1839.876,3174.265,113.067,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1839.876,3172.964,113.067,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1839.886,3175.587,112.147,0.000,0.000,270.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1888.162,3143.422,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1888.162,3144.723,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1888.162,3146.054,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3146.054,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3144.733,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3143.422,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3143.422,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3144.733,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3146.054,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1888.172,3146.054,113.067,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(964,1886.861,3142.091,112.147,0.000,0.000,90.000,5,-1,-1,500.000,500.000);
+	DM_Forest_Objs = CreateDynamicObject(16280,1850.700,3174.022,115.947,0.000,0.000,0.000,5,-1,-1,500.000,500.000);
 
 	fillUpAllCars();
 
@@ -3175,7 +3369,7 @@ public OnGameModeExit()
 	}
 
 	new temp[128];
-    format(temp, sizeof(temp),"UPDATE `accounts` SET `account_online` = '0' WHERE 1=1");
+	format(temp, sizeof(temp),"UPDATE `accounts` SET `account_online` = '0' WHERE 1=1");
 	mysql_query(Database, temp, false);
 	print("All Accounts have been set offline in the database.\n");
 
@@ -3212,6 +3406,12 @@ public OnPlayerRequestSpawn(playerid)
 }
 
 
+forward setLoginPlayerCamera(playerid);
+public setLoginPlayerCamera(playerid) {
+		SetPlayerCameraPos(playerid, 1482.5879,-874.8605,111.2534);
+		SetPlayerCameraLookAt(playerid, 1409.4406,-776.3482,111.5233);
+}
+
 
 public OnPlayerConnect(playerid)
 {
@@ -3222,6 +3422,8 @@ public OnPlayerConnect(playerid)
 		SetTimerEx("DelayedKick", 1000, 0, "i", playerid);
 		printf("Kick: Player %d had an outdated version %s.", playerid, temp);
 	} else {
+
+		SetTimerEx("setLoginPlayerCamera", 500, false, "i", playerid);
 
 		playerData_init(playerid);
 
@@ -3288,63 +3490,63 @@ public OnPlayerConnect(playerid)
 
 		// Vending Machines
 		//Los Santos and Countryside
-    	RemoveBuildingForPlayer(playerid, 956, 1634.1487,-2238.2810,13.5077, 20.0); //Snack vender @ LS Airport
-        RemoveBuildingForPlayer(playerid, 956, 2480.9885,-1958.5117,13.5831, 20.0); //Snack vender @ Sushi Shop in Willowfield
-        RemoveBuildingForPlayer(playerid, 955, 1729.7935,-1944.0087,13.5682, 20.0); //Sprunk machine @ Unity Station
-        RemoveBuildingForPlayer(playerid, 955, 2060.1099,-1898.4543,13.5538, 20.0); //Sprunk machine opposite Tony's Liqour in Willowfield
-        RemoveBuildingForPlayer(playerid, 955, 2325.8708,-1645.9584,14.8270, 20.0); //Sprunk machine @ Ten Green Bottles
-        RemoveBuildingForPlayer(playerid, 955, 1153.9130,-1460.8893,15.7969, 20.0); //Sprunk machine @ Market
-        RemoveBuildingForPlayer(playerid, 955,1788.3965,-1369.2336,15.7578, 20.0); //Sprunk machine in Downtown Los Santos
-        RemoveBuildingForPlayer(playerid, 955, 2352.9939,-1357.1105,24.3984, 20.0); //Sprunk machine @ Liquour shop in East Los Santos
-        RemoveBuildingForPlayer(playerid, 1775, 2224.3235,-1153.0692,1025.7969, 20.0); //Sprunk machine @ Jefferson Motel
-        RemoveBuildingForPlayer(playerid, 956, 2140.2566,-1161.7568,23.9922, 20.0); //Snack machine @ pick'n'go market in Jefferson
-        RemoveBuildingForPlayer(playerid, 956, 2154.1199,-1015.7635,62.8840, 20.0); //Snach machine @ Carniceria El Pueblo in Las Colinas
-        RemoveBuildingForPlayer(playerid, 956, 662.5665,-551.4142,16.3359, 20.0); //Snack vender at Dillimore Gas Station
-        RemoveBuildingForPlayer(playerid, 955, 200.2010,-107.6401,1.5513, 20.0); //Sprunk machine @ Blueberry Safe House
-        RemoveBuildingForPlayer(playerid, 956, 2271.4666,-77.2104,26.5824, 20.0); //Snack machine @ Palomino Creek Library
-        RemoveBuildingForPlayer(playerid, 955, 1278.5421,372.1057,19.5547, 20.0); //Sprunk machine @ Papercuts in Montgomery
-        RemoveBuildingForPlayer(playerid, 955, 1929.5527,-1772.3136,13.5469, 20.0); //Sprunk machine @ Idlewood Gas Station
-       
-        //San Fierro
-        RemoveBuildingForPlayer(playerid, 1302, -2419.5835,984.4185,45.2969, 20.0); //Soda machine 1 @ Juniper Hollow Gas Station
-        RemoveBuildingForPlayer(playerid, 1209, -2419.5835,984.4185,45.2969, 20.0); //Soda machine 2 @ Juniper Hollow Gas Station
-        RemoveBuildingForPlayer(playerid, 956, -2229.2075,287.2937,35.3203, 20.0); //Snack vender @ King's Car Park
-        RemoveBuildingForPlayer(playerid, 955, -1349.3947,493.1277,11.1953, 20.0); //Sprunk machine @ SF Aircraft Carrier
-        RemoveBuildingForPlayer(playerid, 956, -1349.3947,493.1277,11.1953, 20.0); //Snack vender @ SF Aircraft Carrier
-        RemoveBuildingForPlayer(playerid, 955, -1981.6029,142.7232,27.6875, 20.0); //Sprunk machine @ Cranberry Station
-        RemoveBuildingForPlayer(playerid, 955, -2119.6245,-422.9411,35.5313, 20.0); //Sprunk machine 1/2 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2097.3696,-397.5220,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2068.5593,-397.5223,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2039.8802,-397.5214,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2011.1403,-397.5225,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2005.7861,-490.8688,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2034.5267,-490.8681,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2063.1875,-490.8687,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-        RemoveBuildingForPlayer(playerid, 955, -2091.9780,-490.8684,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
-       
-        //Las Venturas
-        RemoveBuildingForPlayer(playerid, 956, -1455.1298,2592.4138,55.8359, 20.0); //Snack vender @ El Quebrados GONE
-        RemoveBuildingForPlayer(playerid, 955, -252.9574,2598.9048,62.8582, 20.0); //Sprunk machine @ Las Payasadas GONE
-        RemoveBuildingForPlayer(playerid, 956, -252.9574,2598.9048,62.8582, 20.0); //Snack vender @ Las Payasadas GONE
-        RemoveBuildingForPlayer(playerid, 956, 1398.7617,2223.3606,11.0234, 20.0); //Snack vender @ Redsands West GONE
-        RemoveBuildingForPlayer(playerid, 955, -862.9229,1537.4246,22.5870, 20.0); //Sprunk machine @ The Smokin' Beef Grill in Las Barrancas GONE
-        RemoveBuildingForPlayer(playerid, 955, -14.6146,1176.1738,19.5634, 20.0); //Sprunk machine @ Fort Carson GONE
-        RemoveBuildingForPlayer(playerid, 956, -75.2839,1227.5978,19.7360, 20.0); //Snack vender @ Fort Carson GONE
-        RemoveBuildingForPlayer(playerid, 955, 1519.3328,1055.2075,10.8203, 20.0); //Sprunk machine @ LVA Freight Department GONE
-        RemoveBuildingForPlayer(playerid, 956, 1659.5096,1722.1096,10.8281, 20.0); //Snack vender near Binco @ LV Airport GONE
-        RemoveBuildingForPlayer(playerid, 955, 2086.5872,2071.4958,11.0579, 20.0); //Sprunk machine @ Sex Shop on The Strip
-        RemoveBuildingForPlayer(playerid, 955, 2319.9001,2532.0376,10.8203, 20.0); //Sprunk machine @ Pizza co by Julius Thruway (North)
-        RemoveBuildingForPlayer(playerid, 955, 2503.2061,1244.5095,10.8203, 20.0); //Sprunk machine @ Club in the Camels Toe
-        RemoveBuildingForPlayer(playerid, 956, 2845.9919,1294.2975,11.3906, 20.0); //Snack vender @ Linden Station
-       
-        //Interiors: 24/7 and Clubs
-        RemoveBuildingForPlayer(playerid, 1775, 496.0843,-23.5310,1000.6797, 20.0); //Sprunk machine 1 @ Club in Camels Toe
-        RemoveBuildingForPlayer(playerid, 1775, 501.1219,-2.1968,1000.6797, 20.0); //Sprunk machine 2 @ Club in Camels Toe
-        RemoveBuildingForPlayer(playerid, 1776, 501.1219,-2.1968,1000.6797, 20.0); //Snack vender @ Club in Camels Toe
-        RemoveBuildingForPlayer(playerid, 1775, -19.2299,-57.0460,1003.5469, 20.0); //Sprunk machine @ Roboi's type 24/7 stores
-        RemoveBuildingForPlayer(playerid, 1776, -35.9012,-57.1345,1003.5469, 20.0); //Snack vender @ Roboi's type 24/7 stores
-        RemoveBuildingForPlayer(playerid, 1775, -17.0036,-90.9709,1003.5469, 20.0); //Sprunk machine @ Other 24/7 stores
-        RemoveBuildingForPlayer(playerid, 1776, -17.0036,-90.9709,1003.5469, 20.0); //Snach vender @ Others 24/7 stores
+		RemoveBuildingForPlayer(playerid, 956, 1634.1487,-2238.2810,13.5077, 20.0); //Snack vender @ LS Airport
+		RemoveBuildingForPlayer(playerid, 956, 2480.9885,-1958.5117,13.5831, 20.0); //Snack vender @ Sushi Shop in Willowfield
+		RemoveBuildingForPlayer(playerid, 955, 1729.7935,-1944.0087,13.5682, 20.0); //Sprunk machine @ Unity Station
+		RemoveBuildingForPlayer(playerid, 955, 2060.1099,-1898.4543,13.5538, 20.0); //Sprunk machine opposite Tony's Liqour in Willowfield
+		RemoveBuildingForPlayer(playerid, 955, 2325.8708,-1645.9584,14.8270, 20.0); //Sprunk machine @ Ten Green Bottles
+		RemoveBuildingForPlayer(playerid, 955, 1153.9130,-1460.8893,15.7969, 20.0); //Sprunk machine @ Market
+		RemoveBuildingForPlayer(playerid, 955,1788.3965,-1369.2336,15.7578, 20.0); //Sprunk machine in Downtown Los Santos
+		RemoveBuildingForPlayer(playerid, 955, 2352.9939,-1357.1105,24.3984, 20.0); //Sprunk machine @ Liquour shop in East Los Santos
+		RemoveBuildingForPlayer(playerid, 1775, 2224.3235,-1153.0692,1025.7969, 20.0); //Sprunk machine @ Jefferson Motel
+		RemoveBuildingForPlayer(playerid, 956, 2140.2566,-1161.7568,23.9922, 20.0); //Snack machine @ pick'n'go market in Jefferson
+		RemoveBuildingForPlayer(playerid, 956, 2154.1199,-1015.7635,62.8840, 20.0); //Snach machine @ Carniceria El Pueblo in Las Colinas
+		RemoveBuildingForPlayer(playerid, 956, 662.5665,-551.4142,16.3359, 20.0); //Snack vender at Dillimore Gas Station
+		RemoveBuildingForPlayer(playerid, 955, 200.2010,-107.6401,1.5513, 20.0); //Sprunk machine @ Blueberry Safe House
+		RemoveBuildingForPlayer(playerid, 956, 2271.4666,-77.2104,26.5824, 20.0); //Snack machine @ Palomino Creek Library
+		RemoveBuildingForPlayer(playerid, 955, 1278.5421,372.1057,19.5547, 20.0); //Sprunk machine @ Papercuts in Montgomery
+		RemoveBuildingForPlayer(playerid, 955, 1929.5527,-1772.3136,13.5469, 20.0); //Sprunk machine @ Idlewood Gas Station
+	   
+		//San Fierro
+		RemoveBuildingForPlayer(playerid, 1302, -2419.5835,984.4185,45.2969, 20.0); //Soda machine 1 @ Juniper Hollow Gas Station
+		RemoveBuildingForPlayer(playerid, 1209, -2419.5835,984.4185,45.2969, 20.0); //Soda machine 2 @ Juniper Hollow Gas Station
+		RemoveBuildingForPlayer(playerid, 956, -2229.2075,287.2937,35.3203, 20.0); //Snack vender @ King's Car Park
+		RemoveBuildingForPlayer(playerid, 955, -1349.3947,493.1277,11.1953, 20.0); //Sprunk machine @ SF Aircraft Carrier
+		RemoveBuildingForPlayer(playerid, 956, -1349.3947,493.1277,11.1953, 20.0); //Snack vender @ SF Aircraft Carrier
+		RemoveBuildingForPlayer(playerid, 955, -1981.6029,142.7232,27.6875, 20.0); //Sprunk machine @ Cranberry Station
+		RemoveBuildingForPlayer(playerid, 955, -2119.6245,-422.9411,35.5313, 20.0); //Sprunk machine 1/2 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2097.3696,-397.5220,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2068.5593,-397.5223,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2039.8802,-397.5214,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2011.1403,-397.5225,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2005.7861,-490.8688,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2034.5267,-490.8681,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2063.1875,-490.8687,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+		RemoveBuildingForPlayer(playerid, 955, -2091.9780,-490.8684,35.5313, 20.0); //Sprunk machine 3 @ SF Stadium
+	   
+		//Las Venturas
+		RemoveBuildingForPlayer(playerid, 956, -1455.1298,2592.4138,55.8359, 20.0); //Snack vender @ El Quebrados GONE
+		RemoveBuildingForPlayer(playerid, 955, -252.9574,2598.9048,62.8582, 20.0); //Sprunk machine @ Las Payasadas GONE
+		RemoveBuildingForPlayer(playerid, 956, -252.9574,2598.9048,62.8582, 20.0); //Snack vender @ Las Payasadas GONE
+		RemoveBuildingForPlayer(playerid, 956, 1398.7617,2223.3606,11.0234, 20.0); //Snack vender @ Redsands West GONE
+		RemoveBuildingForPlayer(playerid, 955, -862.9229,1537.4246,22.5870, 20.0); //Sprunk machine @ The Smokin' Beef Grill in Las Barrancas GONE
+		RemoveBuildingForPlayer(playerid, 955, -14.6146,1176.1738,19.5634, 20.0); //Sprunk machine @ Fort Carson GONE
+		RemoveBuildingForPlayer(playerid, 956, -75.2839,1227.5978,19.7360, 20.0); //Snack vender @ Fort Carson GONE
+		RemoveBuildingForPlayer(playerid, 955, 1519.3328,1055.2075,10.8203, 20.0); //Sprunk machine @ LVA Freight Department GONE
+		RemoveBuildingForPlayer(playerid, 956, 1659.5096,1722.1096,10.8281, 20.0); //Snack vender near Binco @ LV Airport GONE
+		RemoveBuildingForPlayer(playerid, 955, 2086.5872,2071.4958,11.0579, 20.0); //Sprunk machine @ Sex Shop on The Strip
+		RemoveBuildingForPlayer(playerid, 955, 2319.9001,2532.0376,10.8203, 20.0); //Sprunk machine @ Pizza co by Julius Thruway (North)
+		RemoveBuildingForPlayer(playerid, 955, 2503.2061,1244.5095,10.8203, 20.0); //Sprunk machine @ Club in the Camels Toe
+		RemoveBuildingForPlayer(playerid, 956, 2845.9919,1294.2975,11.3906, 20.0); //Snack vender @ Linden Station
+	   
+		//Interiors: 24/7 and Clubs
+		RemoveBuildingForPlayer(playerid, 1775, 496.0843,-23.5310,1000.6797, 20.0); //Sprunk machine 1 @ Club in Camels Toe
+		RemoveBuildingForPlayer(playerid, 1775, 501.1219,-2.1968,1000.6797, 20.0); //Sprunk machine 2 @ Club in Camels Toe
+		RemoveBuildingForPlayer(playerid, 1776, 501.1219,-2.1968,1000.6797, 20.0); //Snack vender @ Club in Camels Toe
+		RemoveBuildingForPlayer(playerid, 1775, -19.2299,-57.0460,1003.5469, 20.0); //Sprunk machine @ Roboi's type 24/7 stores
+		RemoveBuildingForPlayer(playerid, 1776, -35.9012,-57.1345,1003.5469, 20.0); //Snack vender @ Roboi's type 24/7 stores
+		RemoveBuildingForPlayer(playerid, 1775, -17.0036,-90.9709,1003.5469, 20.0); //Sprunk machine @ Other 24/7 stores
+		RemoveBuildingForPlayer(playerid, 1776, -17.0036,-90.9709,1003.5469, 20.0); //Snach vender @ Others 24/7 stores
 
 
 		skinSelector_init(playerid);
@@ -3361,6 +3563,11 @@ public OnPlayerConnect(playerid)
 
 		TXDInfoMessage_init(playerid);
 
+		TXDWantedLeft_init(playerid);
+
+		TXDWantedPlayers_init(playerid);
+
+		TXDStartRace_init(playerid);
 
 		playerData[playerid][sms_re] = -1;
 		playerData[playerid][confiscate_by] = -1;
@@ -3439,6 +3646,12 @@ public OnPlayerDisconnect(playerid, reason)
 		//
 		TXDInfoMessage_destroy(playerid);
 
+		TXDWantedLeft_destroy(playerid);
+
+		TXDWantedPlayers_destroy(playerid);
+
+		TXDStartRace_destroy(playerid);
+
 		playerData_init(playerid);
 		
 
@@ -3459,7 +3672,7 @@ public OnPlayerSpawn(playerid)
 		SetPlayerInterior(playerid,11);
 		SetPlayerPos(playerid,508.7362,-87.4335,998.9609);
 		SetPlayerFacingAngle(playerid,0.0);
-    	SetPlayerCameraPos(playerid,508.7362,-83.4335,998.9609);
+		SetPlayerCameraPos(playerid,508.7362,-83.4335,998.9609);
 		SetPlayerCameraLookAt(playerid,508.7362,-87.4335,998.9609);
 
 		SetPlayerVirtualWorld(playerid, 1 + playerid);
@@ -3803,8 +4016,10 @@ public OnPlayerSpawn(playerid)
 			SendClientMessage(playerid, COLOR_BADINFO, temp);
 			playerData[playerid][robbing_state] = 0;
 			playerData[playerid][robbing_money] = 0;
-			RemovePlayerAttachedObject(playerid, 1);
+			RemovePlayerAttachedObject(playerid, 0);
 			DisablePlayerCheckpoint(playerid);
+
+			PlayerPlaySound(playerid, 0, 0.0, 0.0, 0.0);
 
 			TXDInfoMessage_update(playerid, "");
 		}
@@ -3902,7 +4117,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 				GameTextForPlayer(playerid, "Wasted", 3000, 2);
 
-				killWanted(playerid, killerid);
+				killWanted(playerid, killerid, 0, reason);
 
 			} else {
 				if (playerData[playerid][account_faction] == FACTION_LSPD) {
@@ -3910,11 +4125,11 @@ public OnPlayerDeath(playerid, killerid, reason)
 					SendClientMessageToFaction(playerData[killerid][account_faction], COLOR_FACTION, temp);
 					printf("DEATH: %s", temp);
 				} else {
-					format(temp, sizeof(temp), "LSPD Member %s (%d) killed the unwanted player %s (%d).", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid);
-					SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
-					format(temp, sizeof(temp), "LSPD Member %s (%d) killed the unwanted player %s (%d). Make sure he is not doing DM.", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid);
-					SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
-					printf("DEATH: %s", temp);
+					// format(temp, sizeof(temp), "Attention: Cop %s (%d) killed the unwanted player %s (%d).", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid);
+					// SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
+					format(temp, sizeof(temp), "Attention: Cop %s (%d) killed the unwanted player %s (%d). Make sure he is not doing DM.", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid);
+					SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
+					printf("%s", temp);
 
 					playerData[killerid][dm_unwanted_flag]++;
 					if (playerData[killerid][dm_unwanted_flag] == 2) {
@@ -4012,8 +4227,14 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 				} else {
 
-					format(temp, sizeof(temp), "Player %s (%d) killed you. He has been reported to Police Department.", playerData[killerid][account_name], killerid);
+					new weapon_name[32];
+					GetWeaponName(reason, weapon_name, sizeof(weapon_name));
+
+					format(temp, sizeof(temp), "Player %s (%d) killed you with %s. Distance %.2fm. He has been reported to Police Department.", playerData[killerid][account_name], killerid, weapon_name, GetDistanceBetweenPlayers(playerid, killerid));
 					SendClientMessage(playerid, COLOR_BADINFO, temp);
+
+					format(temp, sizeof(temp), "You have killed %s (%d) with %s. Distance %.2fm.", playerData[playerid][account_name], playerid, weapon_name, GetDistanceBetweenPlayers(playerid, killerid));
+					SendClientMessage(killerid, COLOR_BADINFO, temp);
 
 					reportCrime(killerid, 3, "Murdering a player");
 
@@ -4142,7 +4363,7 @@ public OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY
 			}
 		}
 	}
-    return 1;
+	return 1;
 }
 
 public OnPlayerText(playerid, text[])
@@ -4245,7 +4466,7 @@ public OnPlayerEnterVehicle(playerid, vehicleid, ispassenger)
 				SendClientMessage(playerid, COLOR_SERVER, "Error: You need to have at least Rank 4 to drive this Hydra. Press G to enter as a passenger.");
 				ClearAnimations(playerid);
 			} else if (GetVehicleModel(vehicleid) == 411 && playerData[playerid][account_rank] < 4) {
-				SendClientMessage(playerid, COLOR_SERVER, "Error: You need to have at least Rank 4 to drive this Hydra. Press G to enter as a passenger.");
+				SendClientMessage(playerid, COLOR_SERVER, "Error: You need to have at least Rank 4 to drive this Infernus. Press G to enter as a passenger.");
 				ClearAnimations(playerid);
 			}
 		}
@@ -4379,6 +4600,15 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 		SendClientMessageToAll(COLOR_PUBLIC, temp);
 	}
 
+	if (oldstate == PLAYER_STATE_DRIVER || oldstate == PLAYER_STATE_PASSENGER) {
+		if (playerData[playerid][startRace_active] == 1) {
+			playerData[playerid][startRace_active] = 0;
+			playerData[playerid][startRace_by] = 0;
+
+			TXDStartRace_hide(playerid);
+		}
+	}
+
 	updateSpectators(playerid);
 
 	return 1;
@@ -4401,7 +4631,7 @@ public OnPlayerEnterCheckpoint(playerid)
 
 		playerData[playerid][robbing_state] = 0;
 		playerData[playerid][robbing_money] = 0;
-		RemovePlayerAttachedObject(playerid, 1);
+		RemovePlayerAttachedObject(playerid, 0);
 		DisablePlayerCheckpoint(playerid);
 		playerData[playerid][checkpoint] = 0;
 	} else if (playerData[playerid][am_working] == WORKING_FARMER) {
@@ -4426,9 +4656,9 @@ public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
 {
 	if (IsPlayerAdmin(playerid)) {
 		SetPlayerPos(playerid, fX, fY, fZ);
-    	SetTimerEx("DelayedSetPlayerPosFindZ", 1000, 0, "ifff", playerid, fX, fY, fZ);
+		SetTimerEx("DelayedSetPlayerPosFindZ", 1000, 0, "ifff", playerid, fX, fY, fZ);
 	}
-    return 1;
+	return 1;
 }
 
 forward DelayedSetPlayerPosFindZ(playerid, Float:fX, Float:fY, Float:fZ);
@@ -4534,8 +4764,8 @@ public OnPlayerInteriorChange(playerid, newinteriorid, oldinteriorid)
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
-    if(_:clickedid == INVALID_TEXT_DRAW)
-    {
+	if(_:clickedid == INVALID_TEXT_DRAW)
+	{
 		if (playerData[playerid][skinSelector] == 1) {
 			SelectTextDraw(playerid, 0xab5e5eFF);
 			return 1;
@@ -4543,8 +4773,8 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 			buyCar_hide(playerid);
 			SetPlayerPos(playerid, -1966.5516,293.9211,35.4688);
 		}
-    }
-    return 0;
+	}
+	return 0;
 }
 
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
@@ -4674,7 +4904,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 					giveMoney(playerid, -temp_price);
 					PlayerPlaySound(playerid, 182, 0.0,0.0,0.0);
-					SetTimerEx("stopPlayerSound", 7400, 0, "i", playerid);
+					replacePlayerSound(playerid, 0, 7400);
 
 					new Float:temp_x, Float:temp_y, Float:temp_z, Float:temp_a;
 
@@ -4696,11 +4926,17 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 					printf("BUYCAR: Player %s bought a new %s for $%s.", playerData[playerid][account_name], VehicleNames[temp_model - 400], formatMoney(temp_price));
 
 					SetTimerEx("putPlayerInNewCar", 1000, 0, "ii", playerid, temp_model);
+
+					format(temp, sizeof(temp), "**%s** just bought a new %s!", playerData[playerid][account_name], VehicleNames[temp_model - 400]);
+					mysql_format(Database, temp, sizeof(temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", temp, gettime());
+					mysql_query(Database, temp, false);
+
+
 				}
 			}
 		}
 	}
-    return 0;
+	return 0;
 }
 
 public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
@@ -5701,6 +5937,10 @@ Dialog:DLG_SHOP_CLAN_SUMMARY(playerid, response, listitem, inputtext[])
 		mysql_query(Database, temp, false);
 
 		giveMoney(playerid, -playerData[playerid][shop_clanPrice]);
+
+		format(temp, sizeof(temp), "**%s** created a new clan: %s", playerData[playerid][account_name], playerData[playerid][shop_clanName]);
+		mysql_format(Database, temp, sizeof(temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", temp, gettime());
+		mysql_query(Database, temp, false);
 	}
 	return 1;
 }
@@ -5762,7 +6002,7 @@ Dialog:DLG_UPGRADE_HOUSE(playerid, response, listitem, inputtext[])
 			giveMoney(playerid, -temp_p);
 
 			PlayerPlaySound(playerid, 182, 0.0,0.0,0.0);
-			SetTimerEx("stopPlayerSound", 7400, 0, "i", playerid);
+			replacePlayerSound(playerid, 0, 7400)
 
 			format(temp, sizeof(temp),"INSERT INTO `shop_transactions` (`s_player`, `s_item`, `s_date`, `s_cost`) VALUES ('%d', 'House Upgrade (House %d, Interior %d)', '%d', '$%s')", playerData[playerid][account_id], playerData[playerid][shop_upgradeHouseID], temp_ii, gettime(), formatMoney(temp_p));
 			mysql_query(Database, temp, false);
@@ -5803,7 +6043,7 @@ CMD:factions(playerid, params[])
 }
 
 
-CMD:shout(playerid, params[])
+CMD:megaphone(playerid, params[])
 {
 	new vehicleid = GetPlayerVehicleID(playerid);
 
@@ -5811,7 +6051,12 @@ CMD:shout(playerid, params[])
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not a member of Police Department.");
 	} else if ( !(vehicleid >= SPAWN_LSPD_CARS[0] && vehicleid <= SPAWN_LSPD_CARS[sizeof(SPAWN_LSPD_CARS)-1]) ) {
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be in a LSPD vehicle in order to use this command.");
+	} else if (gettime() - playerData[playerid][megaphone_cooldown] < 5) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: Wait a few seconds. You cannot spam this command.");
 	} else {
+
+		playerData[playerid][megaphone_cooldown] = gettime();
+
 		new temp[546];
 		new temp_count = 0;
 		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
@@ -5826,7 +6071,19 @@ CMD:shout(playerid, params[])
 			}
 		}
 
-		if (temp_count ==0 ) {
+
+		if (temp_count != 0 ) {
+
+			for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+				if (playerData[i][logged] == 1) {
+					new Float: temp_distance = GetDistanceBetweenPlayers(playerid, i);
+					if (temp_distance < 60) {
+						PlayerPlaySound(i, 15800, 0.0, 0.0, 0.0);
+					}
+				}
+			}
+
+		} else {
 			SendClientMessage(playerid, COLOR_SERVER, "There is no wanted player near.");
 		}
 	}
@@ -6029,8 +6286,8 @@ CMD:cuff(playerid, params[])
 			SendClientMessage(temp_id, COLOR_INFO, temp);
 			format(temp, sizeof(temp), "* You have cuffed %s." ,playerData[temp_id][account_name]);
 			SendClientMessage(playerid, COLOR_INFO, temp);
-			RemovePlayerAttachedObject(temp_id, 1); // money bug
-			SetPlayerAttachedObject(temp_id, 2, 19418, 6, -0.011000, 0.028000, -0.022000, -15.600012, -33.699977,-81.700035, 0.891999, 1.000000, 1.168000);
+			RemovePlayerAttachedObject(temp_id, 0); // money bug
+			SetPlayerAttachedObject(temp_id, 0, 19418, 6, -0.011000, 0.028000, -0.022000, -15.600012, -33.699977,-81.700035, 0.891999, 1.000000, 1.168000);
 			SetPlayerSpecialAction(temp_id,SPECIAL_ACTION_CUFFED);
 		}
 
@@ -6066,7 +6323,7 @@ CMD:uncuff(playerid, params[])
 			SendClientMessage(playerid, COLOR_INFO, temp);
 			
 			SetPlayerSpecialAction(temp_id, SPECIAL_ACTION_NONE);
-			RemovePlayerAttachedObject(temp_id, 2);
+			RemovePlayerAttachedObject(temp_id, 0);
 		}
 
 	}
@@ -6123,8 +6380,23 @@ CMD:track(playerid, params[])
 			playerData[playerid][tracking_mode] = 1;
 			playerData[playerid][tracking_player] = temp_id;
 
+			new MapZone:target_zone = GetPlayerMapZone(temp_id);
+			new target_zone_str[MAX_MAP_ZONE_NAME];
+
+			if (target_zone == INVALID_MAP_ZONE_ID) {
+				format(target_zone_str, MAX_MAP_ZONE_NAME, "Unknown");
+			} else {
+				GetMapZoneName(target_zone, target_zone_str);
+			}
+
+			if (playerData[playerid][account_faction] == FACTION_LSPD || playerData[playerid][account_faction] == FACTION_MEDICS || playerData[playerid][account_faction] == FACTION_TAXILS) {
+				new sound_id;
+				GetMapZoneSoundID(target_zone, sound_id);
+				PlayerPlaySound(playerid, sound_id, 0.0, 0.0, 0.0);
+			} 
+
 			new temp[128];
-			format(temp, sizeof(temp), "You are now tracking %s (%d).", playerData[temp_id][account_name], temp_id);
+			format(temp, sizeof(temp), "You are now tracking %s (%d). Zone: %s. Distance: %.2fm", playerData[temp_id][account_name], temp_id, target_zone_str, GetDistanceBetweenPlayers(playerid, temp_id));
 			SendClientMessage(playerid, COLOR_INFO, temp);
 		}
 	}
@@ -6242,7 +6514,7 @@ Dialog:DLG_LOCATIONS(playerid, response, listitem, inputtext[])
 								return 1;
 							}
 							new Float:vehx, Float:vehy, Float:vehz;
-         					GetVehiclePos(i, vehx, vehy, vehz);
+		 					GetVehiclePos(i, vehx, vehy, vehz);
 							setCheckpoint(playerid, vehx, vehy, vehz, 3.0);
 							return 1;
 						}
@@ -6253,7 +6525,7 @@ Dialog:DLG_LOCATIONS(playerid, response, listitem, inputtext[])
 								return 1;
 							}
 							new Float:vehx, Float:vehy, Float:vehz;
-         					GetVehiclePos(i, vehx, vehy, vehz);
+		 					GetVehiclePos(i, vehx, vehy, vehz);
 							setCheckpoint(playerid, vehx, vehy, vehz, 3.0);
 							return 1;
 						}
@@ -6322,12 +6594,12 @@ CMD:buygun(playerid, params[])
 
 COMMAND:buyweapon(playerid,params[])
 {
-     return cmd_buygun(playerid,params);
+	 return cmd_buygun(playerid,params);
 }
 
 COMMAND:buyguns(playerid,params[])
 {
-     return cmd_buygun(playerid,params);
+	 return cmd_buygun(playerid,params);
 }
 
 Dialog:DLG_BUYGUN(playerid, response, listitem, inputtext[])
@@ -6523,6 +6795,11 @@ public clanInvite(playerid, invitedplayer, clanIndex)
 			mysql_query(Database, temp, false);
 
 			savePlayerData(invitedplayer);
+
+
+			format(temp, sizeof(temp), "**%s** invited **%s** to %s", playerData[playerid][account_name], playerData[invitedplayer][account_name], clanData[clanIndex][clan_name]);
+			mysql_format(Database, temp, sizeof(temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", temp, gettime());
+			mysql_query(Database, temp, false);
 		}
 
 	} else {
@@ -6714,6 +6991,7 @@ CMD:cuninvite(playerid, params[])
 		mysql_query(Database, temp, false);
 
 		savePlayerData(temp_id);
+
 	}
 	
 	return 1;
@@ -6867,7 +7145,7 @@ CMD:c(playerid, params[])
 		}
 		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
 			if (playerData[i][logged] == 1 && playerData[i][account_clan] == playerData[playerid][account_clan]) {
-				SendClientMessage(i, 0xd8c2a9FF, temp);
+				SendClientMessage(i, 0xaec8d9FF, temp);
 			}
 		}
 	}
@@ -7066,7 +7344,7 @@ CMD:a(playerid, params[])
 		if(sscanf(params, "s[144]", temp)) {
 			SendClientMessage(playerid, COLOR_SYNTAX, "Syntax: /a <message>");
 		} else {
-			format(temp, sizeof(temp), "[ADMIN] %d %s: %s", playerData[playerid][account_admin], playerData[playerid][account_name], temp);
+			format(temp, sizeof(temp), "%d Admin %s: %s", playerData[playerid][account_admin], playerData[playerid][account_name], temp);
 			SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
 		}
 	}
@@ -7210,6 +7488,8 @@ CMD:park(playerid, params[])
 				SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be alone in your vehicle, so you can park it.");
 			} else if (gettime() - playerData[playerid][park_cooldown] < 60 * 5) {
 				SendClientMessage(playerid, COLOR_SERVER, "Error: You can use /park only one time every 5 minutes.");
+			} else if (IsPlayerInRangeOfPoint(playerid, 75.0, 1564.9336,-1666.5422,28.3956)) {
+				SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot park your car near the LS Police Department permanently.");
 			} else {
 
 				new Float:health;
@@ -7340,17 +7620,17 @@ public modAndWanted(playerid)
 
 public OnEnterExitModShop(playerid, enterexit, interiorid)
 {
-    if(enterexit == 1) // If enterexit is 0, this means they are exiting
-    {
-        if (playerData[playerid][account_wanted] > 0) {
+	if(enterexit == 1) // If enterexit is 0, this means they are exiting
+	{
+		if (playerData[playerid][account_wanted] > 0) {
 			playerData[playerid][mod_and_wanted] = 1;
 			SendClientMessage(playerid, COLOR_BADINFO, "You are wanted. You have 10 seconds to leave this mod shop, or you will get kicked.");
 			SetTimerEx("modAndWanted", 11000, false, "i", playerid);
 		}
-    } else {
+	} else {
 		playerData[playerid][mod_and_wanted] = 0;
 	}
-    return 1;
+	return 1;
 }
 
 // Solves the problem with the Plate Text that won't be changed until player respawns the vehicle.
@@ -7489,11 +7769,16 @@ CMD:pay(playerid, params[])
 		if (playerData[playerid][account_money] < temp_amount) {
 			SendClientMessage(playerid, COLOR_SERVER, "Error: You do not have that amount of money.");
 		} else {
-			new temp[128];
-			format(temp, 128, "\nAre you sure you want to send $%s to %s (%d)?", formatMoney(temp_amount), playerData[temp_id][account_name], temp_id);
-			playerData[playerid][pay_id] = temp_id;
-			playerData[playerid][pay_amount] = temp_amount;
-			Dialog_Show(playerid, DLG_PAY_CONFIRMATION, DIALOG_STYLE_MSGBOX, "Pay: Confirmation", temp, "Confirm","Cancel");
+
+			if (temp_amount >= 10000) {
+				SendClientMessage(playerid, COLOR_SERVER, "Error: You do not have that amount of money with cash. You need to /transfer the money with your bank account.");
+			} else {
+				new temp[128];
+				format(temp, 128, "\nAre you sure you want to send $%s to %s (%d)?", formatMoney(temp_amount), playerData[temp_id][account_name], temp_id);
+				playerData[playerid][pay_id] = temp_id;
+				playerData[playerid][pay_amount] = temp_amount;
+				Dialog_Show(playerid, DLG_PAY_CONFIRMATION, DIALOG_STYLE_MSGBOX, "Pay: Confirmation", temp, "Confirm","Cancel");
+			}
 		}
 	}
 	return 1;
@@ -7583,11 +7868,11 @@ CMD:togcolorchat(playerid, params[])
 		new temp[128];
 		chatIsOff = !chatIsOff;
 		if (chatIsOff) {
-			format(temp, 128, "Admin %s has disabled public chat.", playerData[playerid][account_name]);
+			format(temp, 128, "* Admin %s has disabled public chat.", playerData[playerid][account_name]);
 		} else {
-			format(temp, 128, "Admin %s has enabled public chat.", playerData[playerid][account_name]);
+			format(temp, 128, "* Admin %s has enabled public chat.", playerData[playerid][account_name]);
 		}
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 	}
 	return 1;
 }
@@ -7600,9 +7885,9 @@ CMD:togmodechat(playerid, params[])
 		new temp[128];
 		modeChat = !modeChat;
 
-		format(temp, 128, "Admin %s has changed chat mode.", playerData[playerid][account_name]);
+		format(temp, 128, "* Admin %s has changed chat mode.", playerData[playerid][account_name]);
 
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 	}
 	return 1;
 }
@@ -7718,18 +8003,21 @@ CMD:makehelper(playerid, params[])
 		} else if (playerData[temp_id][account_helper] == temp_level) {
 			SendClientMessage(playerid, COLOR_SERVER, "Error: That player has already that helper level.");
 		} else {
-			new temp[128], temp2[128], tempE[512], temp_old_level;
+			new temp[128], temp2[128], temp3[128], tempE[512], temp_old_level;
 			temp_old_level = playerData[temp_id][account_helper];
 
 			if (temp_level == 0) {
 				format(temp, sizeof(temp), "You have been removed from helpers's position by %s.", playerData[playerid][account_name]);
 				format(temp2, sizeof(temp2), "You have removed %s from helpers's position.", playerData[temp_id][account_name]);
+				format(temp3, sizeof(temp3), "Admin **%s** remove **%s** from helper.", playerData[playerid][account_name], playerData[temp_id][account_name]);
 			} else if (temp_level > temp_old_level) {
 				format(temp, sizeof(temp), "You have been promoted to Helper Level %d by %s.", temp_level, playerData[playerid][account_name]);
 				format(temp2, sizeof(temp2), "You have promoted %s to Helper Level %d.", playerData[temp_id][account_name], temp_level);
+				format(temp3, sizeof(temp3), "Admin **%s** promoted **%s** to Helper Level %d.", playerData[playerid][account_name], playerData[temp_id][account_name], temp_level);
 			} else if (temp_level < temp_old_level) {
 				format(temp, sizeof(temp), "You have been demoted to Helper Level %d by %s.", temp_level, playerData[playerid][account_name]);
 				format(temp2, sizeof(temp2), "You have demoted %s to Helper Level %d.", playerData[temp_id][account_name], temp_level);
+				format(temp3, sizeof(temp3), "Admin **%s** demoted **%s** to Helper Level %d.", playerData[playerid][account_name], playerData[temp_id][account_name], temp_level);
 			}
 
 			SendClientMessage(temp_id, 0x00C3FFFF, temp);
@@ -7738,6 +8026,9 @@ CMD:makehelper(playerid, params[])
 			playerData[temp_id][account_helper] = temp_level;
 
 			format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'helper', '%d', '%d', '%d', '', '0')", playerData[temp_id][account_id], temp_level, playerData[playerid][account_id], gettime());
+			mysql_query(Database, tempE, false);
+
+			mysql_format(Database, tempE, sizeof(tempE),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", temp3, gettime());
 			mysql_query(Database, tempE, false);
 		}
 	}
@@ -7758,18 +8049,21 @@ CMD:makeadmin(playerid, params[])
 		} else if (playerData[temp_id][account_admin] == temp_level) {
 			SendClientMessage(playerid, COLOR_SERVER, "Error: That player has already that admin level.");
 		} else {
-			new temp[128], temp2[128], tempE[512], temp_old_level;
+			new temp[128], temp2[128], temp3[128], tempE[512], temp_old_level;
 			temp_old_level = playerData[temp_id][account_admin];
 
 			if (temp_level == 0) {
 				format(temp, sizeof(temp), "You have been removed from admin's position by %s.", playerData[playerid][account_name]);
 				format(temp2, sizeof(temp2), "You have removed %s from admin's position.", playerData[temp_id][account_name]);
+				format(temp3, sizeof(temp3), "**%s** remove **%s** from admin.", playerData[playerid][account_name], playerData[temp_id][account_name]);
 			} else if (temp_level > temp_old_level) {
 				format(temp, sizeof(temp), "You have been promoted to Admin Level %d by %s.", temp_level, playerData[playerid][account_name]);
 				format(temp2, sizeof(temp2), "You have promoted %s to Admin Level %d.", playerData[temp_id][account_name], temp_level);
+				format(temp3, sizeof(temp3), "Admin **%s** promoted **%s** to Admin Level %d.", playerData[playerid][account_name], playerData[temp_id][account_name], temp_level);
 			} else if (temp_level < temp_old_level) {
 				format(temp, sizeof(temp), "You have been demoted to Admin Level %d by %s.", temp_level, playerData[playerid][account_name]);
 				format(temp2, sizeof(temp2), "You have demoted %s to Admin Level %d.", playerData[temp_id][account_name], temp_level);
+				format(temp3, sizeof(temp3), "Admin **%s** demoted **%s** to Admin Level %d.", playerData[playerid][account_name], playerData[temp_id][account_name], temp_level);
 			}
 
 			SendClientMessage(temp_id, 0x00C3FFFF, temp);
@@ -7778,6 +8072,10 @@ CMD:makeadmin(playerid, params[])
 			playerData[temp_id][account_admin] = temp_level;
 
 			format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'admin', '%d', '%d', '%d', '', '0')", playerData[temp_id][account_id], temp_level, playerData[playerid][account_id], gettime());
+			mysql_query(Database, tempE, false);
+
+
+			mysql_format(Database, tempE, sizeof(tempE),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", temp3, gettime());
 			mysql_query(Database, tempE, false);
 		}
 	}
@@ -7865,8 +8163,8 @@ CMD:respawn(playerid, params[])
 		} else {
 			new temp[128];
 
-			format(temp, 128, "Admin %s respawned %s.", playerData[playerid][account_name], playerData[temp_id][account_name]);
-			SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+			format(temp, 128, "* Admin %s respawned %s.", playerData[playerid][account_name], playerData[temp_id][account_name]);
+			SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 			printf("%s", temp);
 
 			SpawnPlayer(temp_id);
@@ -7892,13 +8190,13 @@ CMD:gotoin(playerid, params[])
 		new temp[128];
 		if (!IsPlayerAdmin(playerid)) {
 			if (playerData[playerid][account_admin] > 0) {
-				format(temp, sizeof(temp), "%s teleported to gotoin.", playerData[playerid][account_name]);
-				SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+				format(temp, sizeof(temp), "* Admin %s teleported to gotoin.", playerData[playerid][account_name]);
+				SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 			} else if (playerData[playerid][account_helper] > 0) {
-				format(temp, sizeof(temp), "%s teleported to gotoin.", playerData[playerid][account_name]);
+				format(temp, sizeof(temp), "* Helper %s teleported to gotoin.", playerData[playerid][account_name]);
 				for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
 					if (playerData[i][logged] == 1 && playerData[i][account_helper] >=1) {
-						SendClientMessage(i,COLOR_ADMIN, temp);
+						SendClientMessage(i,COLOR_ADMIN_WRN, temp);
 					}
 				}
 			}
@@ -7923,8 +8221,8 @@ CMD:goto(playerid, params[])
 
 			new temp[128];
 
-			format(temp, 128, "Admin %s teleported to %s's position.", playerData[playerid][account_name], playerData[temp_id][account_name]);
-			SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+			format(temp, 128, "* Admin %s teleported to %s's position.", playerData[playerid][account_name], playerData[temp_id][account_name]);
+			SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 			printf("%s", temp);
 
 			new Float:temp_x, Float:temp_y, Float:temp_z;
@@ -7952,8 +8250,8 @@ CMD:gethere(playerid, params[])
 		} else {
 			new temp[128];
 
-			format(temp, 128, "Admin %s teleported %s's to his position.", playerData[playerid][account_name], playerData[temp_id][account_name]);
-			SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+			format(temp, 128, "* Admin %s teleported %s's to his position.", playerData[playerid][account_name], playerData[temp_id][account_name]);
+			SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 			printf("%s", temp);
 
 			SendClientMessage(temp_id, COLOR_SERVER, "You have been teleported.");
@@ -7978,8 +8276,8 @@ CMD:cc(playerid, params[])
 			SendClientMessageToAll(-1, " ");
 		}
 		new temp[128];
-		format(temp, 128, "Admin %s cleared the chat.", playerData[playerid][account_name]);
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		format(temp, 128, "* Admin %s cleared the chat.", playerData[playerid][account_name]);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 		printf("%s", temp);
 	}
 	return 1;
@@ -7994,9 +8292,13 @@ public putPlayerInNewCar(playerid, modelid)
 		if (carData[i][vehicle_owner] == playerData[playerid][account_id] && carData[i][vehicle_owner_ID] == playerid) {
 			if (GetVehicleModel(i) == modelid) {
 				PutPlayerInVehicle(playerid, i, 0);
+				return 1;
 			}
 		}
 	}
+
+	printf("putPlayerInNewCar did not find any car for the player %s modelid %d. Try again", playerData[playerid][account_name], modelid);
+	SetTimerEx("putPlayerInNewCar", 1000, 0, "ii", playerid, modelid);
 
 	return 1;
 }
@@ -8007,8 +8309,8 @@ CMD:reloadbiz(playerid, params[])
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
 	} else {
 		new temp[128];
-		format(temp, 128, "Admin %s reloaded all server's businesses.", playerData[playerid][account_name]);
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		format(temp, 128, "* Admin %s reloaded all server's businesses.", playerData[playerid][account_name]);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 		loadBiz(2);
 		SetTimerEx("loadBiz", 600, 0, "i", 0);
 	}
@@ -8022,8 +8324,8 @@ CMD:reloadclans(playerid, params[])
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
 	} else {
 		new temp[128];
-		format(temp, 128, "Admin %s reloaded all server's clans.", playerData[playerid][account_name]);
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		format(temp, 128, "* Admin %s reloaded all server's clans.", playerData[playerid][account_name]);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 		loadClans(2);
 		SetTimerEx("loadClans", 600, 0, "i", 0);
 	}
@@ -8036,8 +8338,8 @@ CMD:reloadhouses(playerid, params[])
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
 	} else {
 		new temp[128];
-		format(temp, 128, "Admin %s reloaded all server's houses.", playerData[playerid][account_name]);
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		format(temp, 128, "* Admin %s reloaded all server's houses.", playerData[playerid][account_name]);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 		houseTogUpdate = 1;
 		loadHouses(2);
 		SetTimerEx("loadHouses", 600, 0, "i", 0);
@@ -8057,8 +8359,8 @@ CMD:reloadcars(playerid, params[])
 			SendClientMessage(playerid, COLOR_SERVER, "Error: That player is not online.");
 		} else {
 			new temp[128];
-			format(temp, 128, "Admin %s reloaded %s's vehicles.", playerData[playerid][account_name], playerData[temp_id][account_name]);
-			SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+			format(temp, 128, "*Admin %s reloaded %s's vehicles.", playerData[playerid][account_name], playerData[temp_id][account_name]);
+			SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 			
 			unloadPlayerVehicles(temp_id);
 			SetTimerEx("loadPlayerVehicles", 1000, 0, "ii", temp_id, 0);
@@ -8151,69 +8453,11 @@ CMD:rob(playerid, params[])
 	} else if (playerData[playerid][robbing_state] > 0) {
 		SendClientMessage(playerid, COLOR_BADINFO, "Error: You are already robbing a bank.");
 	} else if (playerData[playerid][account_escaped] > 0) {
-		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are escaping.");
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot rob while you are escaping.");
 	} else {
 		if (playerData[playerid][special_interior] == INTERIOR_BANK_LS || playerData[playerid][special_interior] == INTERIOR_BANK_SF) {
 
-			if (playerData[playerid][special_interior] == INTERIOR_BANK_LS && gettime() - playerData[playerid][account_robLS_cooldown] < ROB_PER_CITY_COOL) {
-
-				new temp[128];
-				format(temp, sizeof(temp), "You need to wait %d more seconds before you rob this bank again. Rob one from the other available banks (/biz).", ROB_PER_CITY_COOL - (gettime() - playerData[playerid][account_robLS_cooldown]));
-				SendClientMessage(playerid, COLOR_BADINFO, temp);
-			} else if (playerData[playerid][special_interior] == INTERIOR_BANK_SF && gettime() - playerData[playerid][account_robSF_cooldown] < ROB_PER_CITY_COOL) {
-
-				new temp[128];
-				format(temp, sizeof(temp), "You need to wait %d more seconds before you rob this bank again. Rob one from the other available banks (/biz).", ROB_PER_CITY_COOL - (gettime() - playerData[playerid][account_robSF_cooldown]));
-				SendClientMessage(playerid, COLOR_BADINFO, temp);
-
-			} else {
-
-				if(playerData[playerid][special_interior] == INTERIOR_BANK_LS) {
-					playerData[playerid][account_robLS_cooldown] = gettime();
-					playerData[playerid][robbing_inbank] = INTERIOR_BANK_LS;
-					
-					new query_temp[256];
-					format(query_temp, sizeof(query_temp), "**%s** is robbing the LS Bank!", playerData[playerid][account_name]);
-					mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
-					mysql_query(Database, query_temp, false);
-
-					reportCrime(playerid, 6, "Robbing the bank LS");
-				}
-				if(playerData[playerid][special_interior] == INTERIOR_BANK_SF) {
-					playerData[playerid][account_robSF_cooldown] = gettime();
-					playerData[playerid][robbing_inbank] = INTERIOR_BANK_SF;
-
-					new query_temp[256];
-					format(query_temp, sizeof(query_temp), "**%s** is robbing the SF Bank!", playerData[playerid][account_name]);
-					mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
-					mysql_query(Database, query_temp, false);
-
-					reportCrime(playerid, 6, "Robbing the bank SF");
-				}
-
-				new temp_countPD = 0;
-				for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
-					if (playerData[i][account_faction] == FACTION_LSPD && !IsPlayerAfk(i)) {
-						temp_countPD++;
-					}
-				}
-
-				if (temp_countPD == 0) {
-					playerData[playerid][robbing_max_money] = 1000;
-					SendClientMessage(playerid, COLOR_INFO, "You can collect approximately $1.000.");
-				} else {
-					playerData[playerid][robbing_max_money] = 5000;
-					SendClientMessage(playerid, COLOR_INFO, "You can collect approximately $5.000.");
-				}
-
-				SetPlayerAttachedObject(playerid,1,1550,1,0.000000,-0.315000,0.000000,0.000000,87.099960,0.000000,1.000000,1.000000,1.000000);
-
-				playerData[playerid][robbing_state] = 1;
-				playerData[playerid][robbing_money] = 0;
-				playerData[playerid][robbing_msg_flag] = 0;
-
-
-			}
+			startBankRob(playerid);
 
 		} else {
 			new Float: temp_x, Float: temp_y, Float: temp_z;
@@ -8269,9 +8513,144 @@ CMD:rob(playerid, params[])
 	return 1;
 }
 
+
+startBankRob(playerid) {
+
+	if (playerData[playerid][account_faction] == FACTION_LSPD) {
+
+		SendClientMessage(playerid, COLOR_SERVER, "Error: Members from Police Department are not allowed to rob.");
+		return false;
+
+	} else if (playerData[playerid][robbing_state] > 0) {
+		SendClientMessage(playerid, COLOR_BADINFO, "Error: You are already robbing a bank.");
+		return false;
+	} else if (playerData[playerid][account_escaped] > 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot rob while you are escaping.");
+		return false;
+	}
+
+	if (playerData[playerid][special_interior] == INTERIOR_BANK_LS && gettime() - playerData[playerid][account_robLS_cooldown] < ROB_PER_CITY_COOL) {
+
+		new temp[128];
+		format(temp, sizeof(temp), "You need to wait %d more seconds before you rob this bank again. Rob one from the other available banks (/biz).", ROB_PER_CITY_COOL - (gettime() - playerData[playerid][account_robLS_cooldown]));
+		SendClientMessage(playerid, COLOR_BADINFO, temp);
+
+		SetPlayerArmedWeapon(playerid, 0);
+
+	} else if (playerData[playerid][special_interior] == INTERIOR_BANK_SF && gettime() - playerData[playerid][account_robSF_cooldown] < ROB_PER_CITY_COOL) {
+
+		new temp[128];
+		format(temp, sizeof(temp), "You need to wait %d more seconds before you rob this bank again. Rob one from the other available banks (/biz).", ROB_PER_CITY_COOL - (gettime() - playerData[playerid][account_robSF_cooldown]));
+		SendClientMessage(playerid, COLOR_BADINFO, temp);
+
+		SetPlayerArmedWeapon(playerid, 0);
+
+	} else {
+
+		if(playerData[playerid][special_interior] == INTERIOR_BANK_LS) {
+			playerData[playerid][account_robLS_cooldown] = gettime();
+			playerData[playerid][robbing_inbank] = INTERIOR_BANK_LS;
+			
+			new query_temp[256];
+			format(query_temp, sizeof(query_temp), "**%s** is robbing the LS Bank!", playerData[playerid][account_name]);
+			mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
+			mysql_query(Database, query_temp, false);
+
+			reportCrime(playerid, 6, "Robbing the bank LS");
+
+			for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+
+				if (playerData[i][special_interior] == INTERIOR_BANK_LS) {
+					PlayerPlaySound(i, 3401, 0.0, 0.0, 0.0);
+
+					if (i != playerid) {
+						new temp_txt[128];
+						format(temp_txt, sizeof(temp_txt), "* %s started a bank robbery while you were in the bank with him.", playerData[playerid][account_name]);
+						SendClientMessage(i, COLOR_BADINFO, temp_txt);
+
+						cmd_rob(i, "");
+					}
+				}
+
+			}
+
+			if (BANK_LS_ACTORS_ATTACKED == 0) {
+				BANK_LS_ACTORS_ATTACKED = 1;
+
+				ApplyActorAnimation(BANK_LS_ACTOR1, "ped","handsup",3.0,0,0,0,1,0);
+				ApplyActorAnimation(BANK_LS_ACTOR2, "ped","handsup",3.0,0,0,0,1,0);
+				ApplyActorAnimation(BANK_LS_ACTOR3, "ped","cower",3.0,1,0,0,0,0);
+				ApplyActorAnimation(BANK_LS_ACTOR4, "ped","cower",3.0,1,0,0,0,0);
+			}
+		}
+
+		if(playerData[playerid][special_interior] == INTERIOR_BANK_SF) {
+			playerData[playerid][account_robSF_cooldown] = gettime();
+			playerData[playerid][robbing_inbank] = INTERIOR_BANK_SF;
+
+			new query_temp[256];
+			format(query_temp, sizeof(query_temp), "**%s** is robbing the SF Bank!", playerData[playerid][account_name]);
+			mysql_format(Database, query_temp, sizeof(query_temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%s', 'welcome', '%d')", query_temp, gettime());
+			mysql_query(Database, query_temp, false);
+
+			reportCrime(playerid, 6, "Robbing the bank SF");
+
+			for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+
+				if (playerData[i][special_interior] == INTERIOR_BANK_SF) {
+					PlayerPlaySound(i, 3401, 0.0, 0.0, 0.0);
+
+					if (i != playerid) {
+						new temp_txt[128];
+						format(temp_txt, sizeof(temp_txt), "* %s started a bank robbery while you were in the bank with him.", playerData[playerid][account_name]);
+						SendClientMessage(i, COLOR_BADINFO, temp_txt);
+
+						cmd_rob(i, "");
+					}
+				}
+
+			}
+
+			if (BANK_SF_ACTORS_ATTACKED == 0) {
+				BANK_SF_ACTORS_ATTACKED = 1;
+
+				ApplyActorAnimation(BANK_SF_ACTOR1, "ped","handsup",3.0,0,0,0,1,0);
+				ApplyActorAnimation(BANK_SF_ACTOR2, "ped","handsup",3.0,0,0,0,1,0);
+				ApplyActorAnimation(BANK_SF_ACTOR3, "ped","cower",3.0,1,0,0,0,0);
+				ApplyActorAnimation(BANK_SF_ACTOR4, "ped","cower",3.0,1,0,0,0,0);
+			}
+		}
+
+		new temp_countPD = 0;
+		for(new i = 0, j = GetPlayerPoolSize(); i <= j; i++) {
+			if (playerData[i][account_faction] == FACTION_LSPD && !IsPlayerAfk(i)) {
+				temp_countPD++;
+			}
+		}
+
+		if (temp_countPD == 0) {
+			playerData[playerid][robbing_max_money] = 1000;
+			SendClientMessage(playerid, COLOR_INFO, "You can collect approximately $1.000.");
+		} else {
+			playerData[playerid][robbing_max_money] = 5000;
+			SendClientMessage(playerid, COLOR_INFO, "You can collect approximately $5.000.");
+		}
+
+		SetPlayerAttachedObject(playerid,0,1550,1,0.000000,-0.315000,0.000000,0.000000,87.099960,0.000000,1.000000,1.000000,1.000000);
+
+		playerData[playerid][robbing_state] = 1;
+		playerData[playerid][robbing_money] = 0;
+		playerData[playerid][robbing_msg_flag] = 0;
+
+
+	}
+
+	return true;
+}
+
 CMD:crash(playerid,params[])
 {
-    if(!IsPlayerAdmin(playerid)) return 0;
+	if(!IsPlayerAdmin(playerid)) return 0;
 	new targetid;
 
 	if(sscanf(params, "u", targetid)) return SendClientMessage(playerid, COLOR_SERVER, "Syntax: /crash <player>");
@@ -8814,22 +9193,49 @@ CMD:sinvite(playerid, params[])
 				
 				new temp[128], tempE[512];
 
-				playerData[temp_id][account_faction] = tempF;
-				playerData[temp_id][account_rank] = 1;
+				if (tempF == 0) {
 
-				playerData[temp_id][account_skin] = -1;
-				
-				SpawnPlayer(temp_id);
+					playerData[temp_id][account_faction] = tempF;
+					playerData[temp_id][account_rank] = 0;
 
-				format(temp, 128, "Leader %s has invited %s to the faction %s.", playerData[playerid][account_name], playerData[temp_id][account_name], getFactionName(tempF));
-				SendClientMessageToFaction(tempF, COLOR_FACTION, temp);
-				printf("%s", temp);
+					playerData[temp_id][account_skin] = -1;
+					
+					SpawnPlayer(temp_id);
 
-				SendClientMessage(playerid, COLOR_INFO, temp);
+					format(temp, 128, "Admin %s has set your faction to %s.", playerData[playerid][account_name], getFactionName(tempF));
+					SendClientMessage(temp_id, COLOR_FACTION, temp);
+
+					printf("Admin %s set %s's faction to Civil with /sinvite.", playerData[playerid][account_name], playerData[temp_id][account_name]);
+
+					format(temp, 128, "You have set %s's faction to %s.", playerData[temp_id][account_name], getFactionName(tempF));
+					SendClientMessage(playerid, COLOR_INFO, temp);
 
 
-				format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '1', '%d', '%d', '', '%d')", playerData[temp_id][account_id], playerData[playerid][account_id], gettime(), playerData[playerid][account_faction]);
-				mysql_query(Database, tempE, false);
+					format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '0', '%d', '%d', '', '%d')", playerData[temp_id][account_id], playerData[playerid][account_id], gettime(), playerData[playerid][account_faction]);
+					mysql_query(Database, tempE, false);
+
+
+				} else {
+
+					playerData[temp_id][account_faction] = tempF;
+					playerData[temp_id][account_rank] = 1;
+
+					playerData[temp_id][account_skin] = -1;
+					
+					SpawnPlayer(temp_id);
+
+					format(temp, 128, "Admin %s has invited %s to the faction %s.", playerData[playerid][account_name], playerData[temp_id][account_name], getFactionName(tempF));
+					SendClientMessageToFaction(tempF, COLOR_FACTION, temp);
+
+					printf("%s", temp);
+
+					SendClientMessage(playerid, COLOR_INFO, temp);
+
+
+					format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '1', '%d', '%d', '', '%d')", playerData[temp_id][account_id], playerData[playerid][account_id], gettime(), playerData[playerid][account_faction]);
+					mysql_query(Database, tempE, false);
+
+				}
 			}
 		}
 	}
@@ -9008,6 +9414,196 @@ CMD:buyphone(playerid, params[])
 	}
 
 	return 1;
+}
+
+CMD:startrace(playerid, params[])
+{
+	if (playerData[playerid][account_score] < 2) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You need at least score 2 to use this command.");
+	} else if (gettime() - playerData[playerid][startRace_cooldown] < 60) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You have to wait a few seconds until you start a new race again.");
+	} else if (playerData[playerid][startRace_active] == 1) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You are already in a race.");
+	} else if (GetPlayerVehicleID(playerid) == 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be in a vehicle.");
+	} else if (GetPlayerVehicleSeat(playerid) != 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be the driver of the vehicle.");
+	} else if (playerData[playerid][account_wanted] > 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You are wanted.")
+	} else if (playerData[playerid][account_jailed] > 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail.");
+	} else if (playerData[playerid][account_escaped] == 1) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are escaping.");
+	} else if (playerData[playerid][robbing_state] > 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are robbing.");
+	} else {
+
+		new temp_txt[144] = "";
+
+		new Float:temp_x, Float:temp_y, Float:temp_z;
+		GetPlayerPos(playerid, temp_x, temp_y, temp_z);
+
+		playerData[playerid][startRace_cooldown] = gettime();
+
+		for(new k = 0, j = GetPlayerPoolSize(); k <= j; k++) {
+			if (IsPlayerInRangeOfPoint(k, 40.0, temp_x, temp_y, temp_z)) {
+
+				if (playerData[k][startRace_active] == 1) {
+					continue;
+				} else if (GetPlayerVehicleID(k) == 0) {
+					continue;
+				} else if (GetPlayerVehicleSeat(k) != 0) {
+					continue;
+				} else if (playerData[k][account_wanted] > 0) {
+					continue;
+				} else if (playerData[k][account_jailed] > 0) {
+					continue;
+				} else if (playerData[k][account_escaped] == 1) {
+					continue;
+				} else if (playerData[k][robbing_state] > 0) {
+					continue;
+				} else {
+
+					if (k != playerid) {
+
+						if (strlen(temp_txt) == 0) {
+							format(temp_txt, sizeof(temp_txt), "%s", playerData[k][account_name]);
+						} else {
+							format(temp_txt, sizeof(temp_txt), "%s, %s", temp_txt, playerData[k][account_name]);
+						}
+
+					}
+
+					playerData[k][startRace_active] = 1;
+					playerData[k][startRace_by] = playerid;
+					
+					PlayerTextDrawColor(k, playerData[k][startRace_a_txd], -16776961);
+					PlayerTextDrawColor(k, playerData[k][startRace_b_txd], -16776961);
+					PlayerTextDrawColor(k, playerData[k][startRace_c_txd], -16776961);
+
+					TXDStartRace_show(k);
+
+				}
+
+			}
+		}
+
+		if (strlen(temp_txt) == 0) {
+			format(temp_txt, sizeof(temp_txt), "%s started a race alone.", playerData[playerid][account_name]);
+			SendClientMessageToAll(COLOR_PUBLIC, temp_txt);
+			SendClientMessage(playerid, -1, "* There were no other players around.");
+		} else {
+			format(temp_txt, sizeof(temp_txt), "%s started a race with %s.", playerData[playerid][account_name], temp_txt);
+			SendClientMessageToAll(COLOR_PUBLIC, temp_txt);
+		}
+
+		startRaceCallback(playerid, 0);
+
+	}
+	return 1;
+}
+
+forward startRaceCallback(playerid, step);
+public startRaceCallback(playerid, step) {
+
+	if (step == 0) {
+
+		for(new k = 0, j = GetPlayerPoolSize(); k <= j; k++) {
+
+			if (playerData[k][startRace_active] == 1 && playerData[k][startRace_by] == playerid) {
+
+				PlayerTextDrawColor(k, playerData[k][startRace_a_txd], -16776961);
+				PlayerTextDrawColor(k, playerData[k][startRace_b_txd], -16776961);
+				PlayerTextDrawColor(k, playerData[k][startRace_c_txd], -16776961);
+
+				TXDStartRace_show(k);
+
+				PlayerPlaySound(k, 1056, 0.0, 0.0, 0.0);
+
+			}
+
+		}
+
+		SetTimerEx("startRaceCallback", 2000 + 1000 * random(4), false, "ii", playerid, 1);
+
+	} else if (step == 1) {
+
+		for(new k = 0, j = GetPlayerPoolSize(); k <= j; k++) {
+
+			if (playerData[k][startRace_active] == 1 && playerData[k][startRace_by] == playerid) {
+
+				PlayerTextDrawColor(k, playerData[k][startRace_a_txd], -1);
+				PlayerTextDrawColor(k, playerData[k][startRace_b_txd], -16776961);
+				PlayerTextDrawColor(k, playerData[k][startRace_c_txd], -16776961);
+
+				TXDStartRace_show(k);
+
+				PlayerPlaySound(k, 1056, 0.0, 0.0, 0.0);
+
+			}
+
+		}
+
+		SetTimerEx("startRaceCallback", 2000 + 1000 * random(4), false, "ii", playerid, 2);
+
+	} else if (step == 2) {
+
+		for(new k = 0, j = GetPlayerPoolSize(); k <= j; k++) {
+
+			if (playerData[k][startRace_active] == 1 && playerData[k][startRace_by] == playerid) {
+
+				PlayerTextDrawColor(k, playerData[k][startRace_a_txd], -1);
+				PlayerTextDrawColor(k, playerData[k][startRace_b_txd], -1);
+				PlayerTextDrawColor(k, playerData[k][startRace_c_txd], -16776961);
+
+				TXDStartRace_show(k);
+
+				PlayerPlaySound(k, 1057, 0.0, 0.0, 0.0);
+
+			}
+
+		}
+
+		SetTimerEx("startRaceCallback", 3000 + 1000 * random(4), false, "ii", playerid, 3);
+
+	} else if (step == 3) {
+
+		for(new k = 0, j = GetPlayerPoolSize(); k <= j; k++) {
+
+			if (playerData[k][startRace_active] == 1 && playerData[k][startRace_by] == playerid) {
+
+				PlayerTextDrawColor(k, playerData[k][startRace_a_txd], 16711935);
+				PlayerTextDrawColor(k, playerData[k][startRace_b_txd], 16711935);
+				PlayerTextDrawColor(k, playerData[k][startRace_c_txd], 16711935);
+
+				TXDStartRace_show(k);
+
+				PlayerPlaySound(k, 1057, 0.0, 0.0, 0.0);
+				PlayerPlaySound(k, 3201, 0.0, 0.0, 0.0);
+
+			}
+
+		}
+
+		SetTimerEx("startRaceCallback", 3000 , false, "ii", playerid, 4);
+
+	} else if (step == 4) {
+
+		for(new k = 0, j = GetPlayerPoolSize(); k <= j; k++) {
+
+			if (playerData[k][startRace_active] == 1 && playerData[k][startRace_by] == playerid) {
+
+				TXDStartRace_hide(k);
+
+				playerData[k][startRace_active] = 0;
+				playerData[k][startRace_by] = 0;
+
+			}
+
+		}
+
+	}
+
 }
 
 CMD:heal(playerid, params[])
@@ -9345,7 +9941,12 @@ CMD:buyhouse(playerid, params[])
 				SetTimerEx("loadHouses", 600, 0, "i", 0);
 
 				PlayerPlaySound(playerid, 182, 0.0,0.0,0.0);
-				SetTimerEx("stopPlayerSound", 7400, 0, "i", playerid);
+				replacePlayerSound(playerid, 0, 7400)
+
+				format(temp, sizeof(temp), "**%s** just bought a new house!", playerData[playerid][account_name]);
+				mysql_format(Database, temp, sizeof(temp),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", temp, gettime());
+				mysql_query(Database, temp, false);
+
 				return 1;
 			}
 		}
@@ -9657,10 +10258,10 @@ CMD:acceptcar(playerid, params[])
 					SendClientMessage(temp_id, COLOR_INFO, temp);
 
 					PlayerPlaySound(playerid, 182, 0.0,0.0,0.0);
-					SetTimerEx("stopPlayerSound", 7400, 0, "i", playerid);
+					replacePlayerSound(playerid, 0, 7400)
 
 					PlayerPlaySound(temp_id, 182, 0.0,0.0,0.0);
-					SetTimerEx("stopPlayerSound", 7400, 0, "i", temp_id);
+					replacePlayerSound(temp_id, 0, 7400)
 
 					giveMoney(playerid, -playerData[temp_id][sellcar_price]);
 					giveMoney(temp_id, playerData[temp_id][sellcar_price]);
@@ -9975,8 +10576,8 @@ CMD:unbanip(playerid, params[])
 			SendRconCommand(temp);
 			SendRconCommand("reloadbans");
 
-			format(temp, sizeof(temp), "Admin %s unbanned the IP %s and reloaded the banlog.", playerData[playerid][account_name], temp_ip);
-			SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+			format(temp, sizeof(temp), "* Admin %s unbanned the IP %s and reloaded the banlog.", playerData[playerid][account_name], temp_ip);
+			SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 
 			printf("\nUNBAN: %s unbanned the IP %s\n", playerData[playerid][account_name], temp_ip);
 		}
@@ -10051,7 +10652,7 @@ CMD:getweapons(playerid, params[])
 
 CMD:freeze(playerid,params[])
 {
-    if(playerData[playerid][account_admin]<2) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
+	if(playerData[playerid][account_admin]<2) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
 	new targetid;
 
 	if(sscanf(params, "u", targetid)) return SendClientMessage(playerid, COLOR_SYNTAX, "Syntax: /freeze <player>");
@@ -10072,7 +10673,7 @@ CMD:freeze(playerid,params[])
 
 CMD:unfreeze(playerid,params[])
 {
-    if(playerData[playerid][account_admin]<2) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
+	if(playerData[playerid][account_admin]<2) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
 	new targetid;
 
 	if(sscanf(params, "u", targetid)) return SendClientMessage(playerid, COLOR_SYNTAX, "Syntax: /unfreeze <player>");
@@ -10095,18 +10696,18 @@ CMD:slap(playerid, params[])
 	if(playerData[playerid][account_helper] < 2 && playerData[playerid][account_admin] < 1 && !IsPlayerAdmin(playerid)) {
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
 	} else {
-		new temp_id, temp_reason[64];
-		if(sscanf(params, "us[64]", temp_id, temp_reason)) {
-			SendClientMessage(playerid, COLOR_SYNTAX, "Syntax: /slap <player> <reason text>");
+		new temp_id;
+		if(sscanf(params, "u", temp_id)) {
+			SendClientMessage(playerid, COLOR_SYNTAX, "Syntax: /slap <player> ");
 		} else if (!IsPlayerConnected(temp_id) || playerData[temp_id][logged] == 0) {
 			SendClientMessage(playerid, COLOR_SERVER, "Error: That player is not online.");
 		} else {
 			new temp[128];
 			
-			format(temp, 128, "AdmCmd: %s got slapped by %s. Reason: %s", playerData[temp_id][account_name], playerData[playerid][account_name], temp_reason);
-			SendClientMessageToAll(COLOR_PUNISH, temp);
+			format(temp, 128, "* Admin %s slapped %s.", playerData[playerid][account_name], playerData[temp_id][account_name]);
+			SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 
-			printf("SLAP: Player %s got slapped by %s. Reason: %s", playerData[temp_id][account_name], playerData[playerid][account_name], temp_reason);
+			SendClientMessage(temp_id, -1, "You have been slapped by an admin.");
 
 			new Float:temp_x, Float:temp_y, Float:temp_z;
 			GetPlayerPos(temp_id, temp_x, temp_y, temp_z);
@@ -10133,8 +10734,8 @@ CMD:rac(playerid, params[])
 			}
 		}
 
-		format(temp, 128, "Admin %s respawned %d vehicles.", playerData[playerid][account_name], temp_count);
-		SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+		format(temp, 128, "* Admin %s respawned %d vehicles.", playerData[playerid][account_name], temp_count);
+		SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 
 		printf("%s", temp);
 	}
@@ -10479,6 +11080,24 @@ CMD:gotohouse(playerid, params[])
 }
 
 
+
+CMD:playsound(playerid, params[])
+{
+	if(!IsPlayerAdmin(playerid)) {
+		return 0;
+	} else {
+		new tempi;
+		if(sscanf(params, "i", tempi )) {
+			SendClientMessage(playerid, COLOR_SYNTAX, "Syntax: /playsound tempi");
+		} else {
+
+			PlayerPlaySound(playerid, tempi, 0.0,0.0,0.0);
+			
+		}
+	}
+	return 1;
+}
+
 CMD:sethp(playerid, params[])
 {
 	if(playerData[playerid][account_admin] < 3 && !IsPlayerAdmin(playerid)) {
@@ -10619,8 +11238,8 @@ CMD:spec(playerid, params[])
 			}
 
 			if (playerData[playerid][spec_player] == 0 || playerData[playerid][spec_player] != temp_id && !IsPlayerAdmin(playerid)) {
-				format(temp, 128, "Admin %s is now spectating %s (%d).", playerData[playerid][account_name], playerData[temp_id][account_name], temp_id);
-				SendClientMessageToAdmins(1, COLOR_ADMIN, temp);
+				format(temp, 128, "* Admin %s is now spectating %s (%d).", playerData[playerid][account_name], playerData[temp_id][account_name], temp_id);
+				SendClientMessageToAdmins(1, COLOR_ADMIN_WRN, temp);
 			}
 
 			playerData[playerid][spec_player] = temp_id;
@@ -10677,7 +11296,7 @@ CMD:makeleader(playerid, params[])
 		} else if (temp_faction < 0 || temp_faction > 5) {
 			SendClientMessage(playerid, COLOR_SERVER, "Error: Invalid Faction ID.");
 		} else {
-			new temp[128], tempE[512];
+			new temp[128], tempE[512], tempD[128];
 
 			if (temp_faction == 0) {
 				playerData[temp_id][account_faction] = 0;
@@ -10687,6 +11306,8 @@ CMD:makeleader(playerid, params[])
 				SendClientMessage(temp_id, 0x00C3FFFF, temp);
 				format(temp, sizeof(temp), "You have removed %s from the Leader's position.", playerData[temp_id][account_name]);
 				SendClientMessage(playerid, 0x00C3FFFF, temp);
+
+				format(tempD, sizeof(tempD), "**%s** removed **%s** from Leader.", playerData[playerid][account_name], playerData[temp_id][account_name]);
 
 				playerData[temp_id][account_skin] = -1;
 				SpawnPlayer(temp_id);
@@ -10718,10 +11339,15 @@ CMD:makeleader(playerid, params[])
 				SendClientMessage(temp_id, 0x00C3FFFF, temp);
 				format(temp, sizeof(temp), "You have promoted %s as the Leader of %s.", playerData[temp_id][account_name], tempF);
 				SendClientMessage(playerid, 0x00C3FFFF, temp);
+
+				format(tempD, sizeof(tempD), "**%s** promoted **%s** as the Leader of %s.", playerData[playerid][account_name], playerData[temp_id][account_name], tempF);
 			}
 
 			format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '%d', '%d', '%d', '', '%d')", playerData[temp_id][account_id], 7, playerData[playerid][account_id], gettime(), temp_faction);
 			mysql_query(Database, tempE, false);
+
+			mysql_format(Database, tempD, sizeof(tempD),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", tempD, gettime());
+			mysql_query(Database, tempD, false);
 		}
 	}
 	return 1;
@@ -10758,6 +11384,7 @@ CMD:help(playerid, params[]) {
 	strcat(temp, "/robhelp\tInformation regarding the rob system\n");
 	strcat(temp, "/eventhelp\tInformation regarding the event system\n");
 	strcat(temp, "/animlist\tAvailable animations\n");
+	strcat(temp, "/startrace\tStart a race with your friends\n");
 	strcat(temp, "/morehelp\tMore available commands");
 	Dialog_Show(playerid, DLG_HELP, DIALOG_STYLE_TABLIST, "Help", temp, "Select", "Cancel");
 	return 1;
@@ -10792,7 +11419,7 @@ CMD:factionhelp(playerid, params[]) {
 		SendClientMessage(playerid, COLOR_SERVER, "FACTION HELP: /f, /progress, /leaderhelp");
 	}
 	if (playerData[playerid][account_faction]==FACTION_LSPD) {
-		SendClientMessage(playerid, COLOR_SERVER, "FACTION HELP: /f, /wanted, /leaderhelp, /frisk, /confiscate, /cuff, /uncuff, /arrest, /shout");
+		SendClientMessage(playerid, COLOR_SERVER, "FACTION HELP: /f, /wanted, /leaderhelp, /frisk, /confiscate, /cuff, /uncuff, /arrest, /megaphone");
 	}
 	if (playerData[playerid][account_faction]==FACTION_MEDICS) {
 		SendClientMessage(playerid, COLOR_SERVER, "FACTION HELP: /f, /progress, /leaderhelp");
@@ -10843,7 +11470,8 @@ CMD:robhelp(playerid, params[]) {
 	\n\
 	Rob a bank:\n\
 	Find a bank in /locations and get inside. Then start /rob and collect as much money as you can.\n\
-	When you are ready get out and deliver your collected money at the checkpoint on the map.", "OK", "");
+	When you are ready get out and deliver your collected money at the checkpoint on the map.\n\
+	You can also target a bank employee and start a robbery.", "OK", "");
 	return 1;
 }
 
@@ -10871,7 +11499,7 @@ CMD:morehelp(playerid, params[]) {
 
 CMD:animlist(playerid,params[])
 {
-	SendClientMessage(playerid,-1,"/fall /injured /push /handsup /bomb /drunk /getarrested /laugh /chairsit2");
+	SendClientMessage(playerid,-1,"/fall /injured /push /handsup /pee /bomb /drunk /getarrested /laugh /chairsit2");
 	SendClientMessage(playerid,-1,"/medic /robman /taichi /lookout /kiss /cellin /cellout /crossarms /lay");
 	SendClientMessage(playerid,-1,"/deal /crack /smokem /smokef /groundsit /chatnow /dance /fucku /strip /hide");
 	SendClientMessage(playerid,-1,"/rollfall /bat /lifejump /lay2 /chant /aim /lowthrow /highthrow /lean");
@@ -10915,6 +11543,7 @@ CMD:radio(playerid, params[]) {
 		Athens Deejay 95.2\n\
 		MAD Radio 106.2\n\
 		Laknicek Radio\n\
+		Papoutsis Radio\n\
 		{B3B3B3}Stop Radio", "OK", "Cancel");
 	}
 	return 1;
@@ -10931,6 +11560,7 @@ Dialog:DLG_RADIO(playerid, response, listitem, inputtext[])
 		if (strcmp(inputtext, "Athens Deejay 95.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "adj");
 		if (strcmp(inputtext, "MAD Radio 106.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "mad");
 		if (strcmp(inputtext, "Laknicek Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "lak");
+		if (strcmp(inputtext, "Papoutsis Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "papoutsis");
 		if (strcmp(inputtext, "Stop Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "");
 
 		if (strcmp(inputtext, "Stop Radio") != 0) {
@@ -11021,6 +11651,8 @@ stock SendClientMessageToAdmins(level, color, message[])
 			SendClientMessage(i, color, message);
 		}
 	}
+
+	printf("AdminMessage: %s", message);
 }
 
 stock SendClientMessageToFaction(faction, color, message[])
@@ -11139,28 +11771,28 @@ stock isWarTime()
 
 stock formatMoney(iNum, const szChar[] = ".")
 {
-    new
-        szStr[16]
-    ;
-    format(szStr, sizeof(szStr), "%d", iNum);
-    
-    for(new iLen = strlen(szStr) - 3; iLen > 0; iLen -= 3)
-    {
-        strins(szStr, szChar, iLen);
-    }
-    return szStr;
+	new
+		szStr[16]
+	;
+	format(szStr, sizeof(szStr), "%d", iNum);
+	
+	for(new iLen = strlen(szStr) - 3; iLen > 0; iLen -= 3)
+	{
+		strins(szStr, szChar, iLen);
+	}
+	return szStr;
 }
 
 stock GetVehicleDriverID(vehicleid)
 {
-    for(new i,l=GetPlayerPoolSize()+1; i<l; i++) if(GetPlayerState(i) == PLAYER_STATE_DRIVER && IsPlayerInVehicle(i,vehicleid)) return i;
-    return -1;
+	for(new i,l=GetPlayerPoolSize()+1; i<l; i++) if(GetPlayerState(i) == PLAYER_STATE_DRIVER && IsPlayerInVehicle(i,vehicleid)) return i;
+	return -1;
 } 
 
 stock SetPlayerSkinFix(playerid, skinid)
 {
 	new
-	    Float:tmpPos[4],
+		Float:tmpPos[4],
 		vehicleid = GetPlayerVehicleID(playerid),
 		seatid = GetPlayerVehicleSeat(playerid);
 	GetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
@@ -11168,17 +11800,17 @@ stock SetPlayerSkinFix(playerid, skinid)
 	if(skinid < 0 || skinid > 299) return 0;
 	if(GetPlayerSpecialAction(playerid) == SPECIAL_ACTION_DUCK)
 	{
-	    SetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
+		SetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
 		SetPlayerFacingAngle(playerid, tmpPos[3]);
 		TogglePlayerControllable(playerid, 1); // preventing any freeze - optional
 		return SetPlayerSkin(playerid, skinid);
 	}
 	else if(IsPlayerInAnyVehicle(playerid))
 	{
-	    new
-	        tmp;
-	    RemovePlayerFromVehicle(playerid);
-	    SetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
+		new
+			tmp;
+		RemovePlayerFromVehicle(playerid);
+		SetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
 		SetPlayerFacingAngle(playerid, tmpPos[3]);
 		TogglePlayerControllable(playerid, 1); // preventing any freeze - important - because of doing animations of exiting vehicle
 		tmp = SetPlayerSkin(playerid, skinid);
@@ -11187,7 +11819,7 @@ stock SetPlayerSkinFix(playerid, skinid)
 	}
 	else
 	{
-	    return SetPlayerSkin(playerid, skinid);
+		return SetPlayerSkin(playerid, skinid);
 	}
 }
 
@@ -11852,7 +12484,7 @@ stock door_enter(playerid)
 							}
 						}
 
-					} else if ((bizData[i][biz_type] == BIZ_TYPE_BANKLS || bizData[i][biz_type] == BIZ_TYPE_BANKLS) && playerData[playerid][robbing_state] == 2) {
+					} else if ((bizData[i][biz_type] == BIZ_TYPE_BANKLS || bizData[i][biz_type] == BIZ_TYPE_BANKSF) && playerData[playerid][robbing_state] == 2) {
 						SendClientMessage(playerid, COLOR_BADINFO, "You cannot get in. You need to go at the safe checkpoint to deliver the money.");
 					} else {
 
@@ -11967,6 +12599,12 @@ stock door_exit(playerid)
 			new temp_biz_type = bizData[temp_biz][biz_type];
 
 			if (IsPlayerInRangeOfPoint(playerid, 4.0, BIZ_INTERIORS[temp_biz_type][bi_x], BIZ_INTERIORS[temp_biz_type][bi_y], BIZ_INTERIORS[temp_biz_type][bi_z])) {
+
+				if (playerData[playerid][special_interior] == INTERIOR_BANK_SF || playerData[playerid][special_interior] == INTERIOR_BANK_LS) {
+					// stop the rob sirens
+					PlayerPlaySound(playerid, 0, 0.0, 0.0, 0.0);
+				}
+
 				playerData[playerid][enteredBiz] = 0;
 				SetPlayerInterior(playerid, 0);
 				SetPlayerPos(playerid, bizData[temp_biz][biz_x], bizData[temp_biz][biz_y], bizData[temp_biz][biz_z]);
@@ -12143,7 +12781,7 @@ stock reportCrime(playerid, add_wanted, reason[])
 	SendClientMessage(playerid, COLOR_BADINFO, temp);
 }
 
-stock killWanted(playerid, killerid, arrest = 0)
+stock killWanted(playerid, killerid, arrest = 0, weaponid = -1)
 {
 	new temp_jail;
 	new temp[564];
@@ -12175,11 +12813,26 @@ stock killWanted(playerid, killerid, arrest = 0)
 		SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
 	} else {
 
+		if (weaponid == -1) {
 
-		format(temp, sizeof(temp), "LSPD Member %s (%d) killed you while you were wanted. You have been jailed for %d seconds.", playerData[killerid][account_name], killerid, temp_jail);
-		SendClientMessage(playerid, COLOR_BADINFO, temp);
-		format(temp, sizeof(temp), "LSPD Member %s (%d) killed the wanted player %s (%d), who got jailed for %d seconds.", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid, temp_jail);
-		SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
+			new Float:players_distance = GetDistanceBetweenPlayers(playerid, killerid);
+
+			format(temp, sizeof(temp), "Police Officer %s (%d) killed you while you were wanted. Distance %.2fm. You have been jailed for %d seconds.", playerData[killerid][account_name], killerid, players_distance, temp_jail);
+			SendClientMessage(playerid, COLOR_BADINFO, temp);
+			format(temp, sizeof(temp), "Police Officer %s (%d) killed the wanted player %s (%d), who got jailed for %d seconds. Distance %.2fm.", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid, temp_jail, players_distance);
+			SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
+
+		} else {
+			new weapon_name[32];
+			GetWeaponName(weaponid, weapon_name, sizeof(weapon_name));
+
+			new Float:players_distance = GetDistanceBetweenPlayers(playerid, killerid);
+
+			format(temp, sizeof(temp), "Police Officer %s (%d) killed you with %s while you were wanted. Distance %.2fm. You have been jailed for %d seconds.", playerData[killerid][account_name], killerid, weapon_name, players_distance, temp_jail);
+			SendClientMessage(playerid, COLOR_BADINFO, temp);
+			format(temp, sizeof(temp), "Police Officer %s (%d) killed the wanted player %s (%d) with %s, who got jailed for %d seconds. Distance %.2fm.", playerData[killerid][account_name], killerid, playerData[playerid][account_name], playerid, weapon_name, temp_jail, players_distance);
+			SendClientMessageToFaction(FACTION_LSPD, COLOR_FACTION, temp);
+		}
 
 	}
 
@@ -12250,20 +12903,44 @@ stock updateSpectators(playerid)
 	}
 }
 
+public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
+{
+
+	new dmg_string[128], weapon_name[24];
+	GetWeaponName(weaponid, weapon_name, sizeof (weapon_name));
+
+	if (IsPlayerConnected(damagedid)) {
+		format(dmg_string, sizeof(dmg_string), "Hit %s (%d) with %s; Body Part %d; Damage %.1f; Distance %.1fm", playerData[damagedid][account_name], damagedid, weapon_name, bodypart, amount, GetDistanceBetweenPlayers(playerid, damagedid));
+	} else {
+		format(dmg_string, sizeof(dmg_string), "Hit ? with %s; Body Part %d; Damage %.1f", weapon_name, bodypart, amount);
+	}
+
+	for (new j = 0, k = GetPlayerPoolSize(); j <= k; j++) {
+		if (playerData[j][logged] == 1) {
+			if (playerData[j][spec_mode] == 1 && playerData[j][spec_player] == playerid) {
+
+				SendClientMessage(j, -1, dmg_string);
+
+			}
+		}
+	}
+
+    return 1;
+}
+
 stock createTXDActiveReports(playerid)
 {
-	new PlayerText:Textdraw0;
-	// In OnPlayerConnect prefferably, we procced to create our textdraws:
-	Textdraw0 = CreatePlayerTextDraw(playerid,419.000000, 22.000000, "Active Reports: 0");
-	PlayerTextDrawBackgroundColor(playerid,Textdraw0, 255);
-	PlayerTextDrawFont(playerid,Textdraw0, 2);
-	PlayerTextDrawLetterSize(playerid,Textdraw0, 0.160000, 1.200000);
-	PlayerTextDrawColor(playerid,Textdraw0, -855177217);
-	PlayerTextDrawSetOutline(playerid,Textdraw0, 1);
-	PlayerTextDrawSetProportional(playerid,Textdraw0, 1);
-	PlayerTextDrawSetSelectable(playerid,Textdraw0, 0);
+	new PlayerText:Textdraw1;
+	Textdraw1 = CreatePlayerTextDraw(playerid,404.000000, 20.000000, "OPEN REPORTS: 1");
+	PlayerTextDrawBackgroundColor(playerid,Textdraw1, 255);
+	PlayerTextDrawFont(playerid,Textdraw1, 3);
+	PlayerTextDrawLetterSize(playerid,Textdraw1, 0.220000, 1.100000);
+	PlayerTextDrawColor(playerid,Textdraw1, -16776961);
+	PlayerTextDrawSetOutline(playerid,Textdraw1, 1);
+	PlayerTextDrawSetProportional(playerid,Textdraw1, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw1, 0);
 
-	playerData[playerid][active_reportsTXD] = Textdraw0;
+	playerData[playerid][active_reportsTXD] = Textdraw1;
 }
 
 stock destroyTXDActiveReports(playerid)
@@ -12274,12 +12951,12 @@ stock destroyTXDActiveReports(playerid)
 forward Float:GetDistanceBetweenPlayers(playerid,targetplayerid);
 public Float:GetDistanceBetweenPlayers(playerid,targetplayerid)
 {
-    if(!IsPlayerConnected(playerid) || !IsPlayerConnected(targetplayerid) || playerData[playerid][logged] == 0 || playerData[targetplayerid][logged] == 0) {
-        return -1.00;
-    }
+	if(!IsPlayerConnected(playerid) || !IsPlayerConnected(targetplayerid) || playerData[playerid][logged] == 0 || playerData[targetplayerid][logged] == 0) {
+		return -1.00;
+	}
 	new Float:x1,Float:y1,Float:z1,Float:x2,Float:y2,Float:z2;
 
-    GetPlayerPos(playerid,x1,y1,z1);
+	GetPlayerPos(playerid,x1,y1,z1);
 
 	if (playerData[targetplayerid][enteredBiz] != 0) {
 
@@ -12299,7 +12976,7 @@ public Float:GetDistanceBetweenPlayers(playerid,targetplayerid)
 		GetPlayerPos(targetplayerid,x2,y2,z2);
 	}
 	
-    return floatsqroot(floatpower(floatabs(floatsub(x2,x1)),2)+floatpower(floatabs(floatsub(y2,y1)),2)+floatpower(floatabs(floatsub(z2,z1)),2));
+	return floatsqroot(floatpower(floatabs(floatsub(x2,x1)),2)+floatpower(floatabs(floatsub(y2,y1)),2)+floatpower(floatabs(floatsub(z2,z1)),2));
 }
 
 stock isInArray(value, array[])
@@ -12631,4 +13308,192 @@ stock TXDInfoMessage_update(playerid, message[])
 		PlayerTextDrawSetString(playerid, playerData[playerid][infoMessage_txd], message);
 		PlayerTextDrawShow(playerid, playerData[playerid][infoMessage_txd]);
 	}
+}
+
+
+
+stock TXDWantedLeft_init(playerid) {
+	new PlayerText:Textdraw0;
+
+	Textdraw0 = CreatePlayerTextDraw(playerid,555.000000, 126.000000, "WANTED TIME LEFT: 6 mins");
+	PlayerTextDrawAlignment(playerid,Textdraw0, 2);
+	PlayerTextDrawBackgroundColor(playerid,Textdraw0, 255);
+	PlayerTextDrawFont(playerid,Textdraw0, 3);
+	PlayerTextDrawLetterSize(playerid,Textdraw0, 0.230000, 1.299999);
+	PlayerTextDrawColor(playerid,Textdraw0, -1872621313);
+	PlayerTextDrawSetOutline(playerid,Textdraw0, 1);
+	PlayerTextDrawSetProportional(playerid,Textdraw0, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw0, 0);
+
+	playerData[playerid][wantedLeft_txd] = Textdraw0;
+
+}
+
+
+stock TXDWantedLeft_destroy(playerid) {
+	PlayerTextDrawDestroy(playerid, playerData[playerid][wantedLeft_txd]);
+}
+
+stock TXDWantedLeft_update(playerid, message[])
+{
+	if (strlen(message) == 0) {
+		PlayerTextDrawHide(playerid, playerData[playerid][wantedLeft_txd]);
+	} else {
+		PlayerTextDrawSetString(playerid, playerData[playerid][wantedLeft_txd], message);
+		PlayerTextDrawShow(playerid, playerData[playerid][wantedLeft_txd]);
+	}
+}
+
+
+
+stock TXDWantedPlayers_init(playerid) {
+
+	new PlayerText:Textdraw2;
+
+	Textdraw2 = CreatePlayerTextDraw(playerid,404.000000, 33.000000, "WANTED PLAYERS: 4");
+	PlayerTextDrawBackgroundColor(playerid,Textdraw2, 255);
+	PlayerTextDrawFont(playerid,Textdraw2, 3);
+	PlayerTextDrawLetterSize(playerid,Textdraw2, 0.220000, 1.100000);
+	PlayerTextDrawColor(playerid,Textdraw2, -65281);
+	PlayerTextDrawSetOutline(playerid,Textdraw2, 1);
+	PlayerTextDrawSetProportional(playerid,Textdraw2, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw2, 0);
+
+	playerData[playerid][wantedPlayers_txd] = Textdraw2;
+}
+
+
+stock TXDWantedPlayers_destroy(playerid) {
+	PlayerTextDrawDestroy(playerid, playerData[playerid][wantedPlayers_txd]);
+}
+
+stock TXDWantedPlayers_update(playerid, message[])
+{
+	if (strlen(message) == 0) {
+		PlayerTextDrawHide(playerid, playerData[playerid][wantedPlayers_txd]);
+	} else {
+		PlayerTextDrawSetString(playerid, playerData[playerid][wantedPlayers_txd], message);
+		PlayerTextDrawShow(playerid, playerData[playerid][wantedPlayers_txd]);
+	}
+}
+
+// Fixes: GetTickCount will eventually warp past the integer size constraints
+// https://gist.github.com/ziggi/5d7d8dc42f54531feba7ae924c608e73
+stock GetTickDiff(newtick, oldtick)
+{
+	if (oldtick > newtick) {
+		return (cellmax - oldtick + 1) - (cellmin - newtick);
+	}
+	return newtick - oldtick;
+}
+
+
+stock replacePlayerSound(playerid, new_sound, in_seconds) {
+
+	SetTimerEx("replacePlayerSoundCallback", 15, 0, "iiii", playerid, new_sound, GetTickCount(), in_seconds);
+}
+
+forward replacePlayerSoundCallback(playerid, new_sound, started_on, stop_seconds);
+public replacePlayerSoundCallback(playerid, new_sound, started_on, stop_seconds) {
+
+	if (GetTickDiff(GetTickCount(), started_on) >= stop_seconds) {
+		PlayerPlaySound(playerid, new_sound, 0.0,0.0,0.0);
+		return 1;
+	}
+	
+	SetTimerEx("replacePlayerSoundCallback", 15, 0, "iiii", playerid, new_sound, started_on, stop_seconds);
+	return 0;
+}
+
+
+stock TXDStartRace_init(playerid) {
+	new PlayerText:Textdraw0;
+	new PlayerText:Textdraw1;
+	new PlayerText:Textdraw2;
+	new PlayerText:Textdraw3;
+	new PlayerText:Textdraw4;
+
+	// In OnPlayerConnect prefferably, we procced to create our textdraws:
+	Textdraw0 = CreatePlayerTextDraw(playerid,315.000000, 368.000000, "bg");
+	PlayerTextDrawAlignment(playerid,Textdraw0, 2);
+	PlayerTextDrawBackgroundColor(playerid,Textdraw0, 255);
+	PlayerTextDrawFont(playerid,Textdraw0, 1);
+	PlayerTextDrawLetterSize(playerid,Textdraw0, 0.500000, 2.299999);
+	PlayerTextDrawColor(playerid,Textdraw0, 255);
+	PlayerTextDrawSetOutline(playerid,Textdraw0, 0);
+	PlayerTextDrawSetProportional(playerid,Textdraw0, 1);
+	PlayerTextDrawSetShadow(playerid,Textdraw0, 1);
+	PlayerTextDrawUseBox(playerid,Textdraw0, 1);
+	PlayerTextDrawBoxColor(playerid,Textdraw0, 255);
+	PlayerTextDrawTextSize(playerid,Textdraw0, 431.000000, 132.000000);
+	PlayerTextDrawSetSelectable(playerid,Textdraw0, 0);
+
+	Textdraw1 = CreatePlayerTextDraw(playerid,265.000000, 363.000000, "0");
+	PlayerTextDrawBackgroundColor(playerid,Textdraw1, 255);
+	PlayerTextDrawFont(playerid,Textdraw1, 1);
+	PlayerTextDrawLetterSize(playerid,Textdraw1, 0.980000, 3.099999);
+	PlayerTextDrawColor(playerid,Textdraw1, -16776961);
+	PlayerTextDrawSetOutline(playerid,Textdraw1, 1);
+	PlayerTextDrawSetProportional(playerid,Textdraw1, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw1, 0);
+
+	Textdraw2 = CreatePlayerTextDraw(playerid,305.000000, 363.000000, "0");
+	PlayerTextDrawBackgroundColor(playerid,Textdraw2, 255);
+	PlayerTextDrawFont(playerid,Textdraw2, 1);
+	PlayerTextDrawLetterSize(playerid,Textdraw2, 0.980000, 3.099999);
+	PlayerTextDrawColor(playerid,Textdraw2, -1);
+	PlayerTextDrawSetOutline(playerid,Textdraw2, 1);
+	PlayerTextDrawSetProportional(playerid,Textdraw2, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw2, 0);
+
+	Textdraw3 = CreatePlayerTextDraw(playerid,343.000000, 363.000000, "0");
+	PlayerTextDrawBackgroundColor(playerid,Textdraw3, 255);
+	PlayerTextDrawFont(playerid,Textdraw3, 1);
+	PlayerTextDrawLetterSize(playerid,Textdraw3, 0.980000, 3.099999);
+	PlayerTextDrawColor(playerid,Textdraw3, 16711935);
+	PlayerTextDrawSetOutline(playerid,Textdraw3, 1);
+	PlayerTextDrawSetProportional(playerid,Textdraw3, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw3, 0);
+
+	Textdraw4 = CreatePlayerTextDraw(playerid,315.000000, 347.000000, "Race");
+	PlayerTextDrawAlignment(playerid,Textdraw4, 2);
+	PlayerTextDrawBackgroundColor(playerid,Textdraw4, 255);
+	PlayerTextDrawFont(playerid,Textdraw4, 3);
+	PlayerTextDrawLetterSize(playerid,Textdraw4, 0.649999, 2.100000);
+	PlayerTextDrawColor(playerid,Textdraw4, -1);
+	PlayerTextDrawSetOutline(playerid,Textdraw4, 0);
+	PlayerTextDrawSetProportional(playerid,Textdraw4, 1);
+	PlayerTextDrawSetShadow(playerid,Textdraw4, 1);
+	PlayerTextDrawSetSelectable(playerid,Textdraw4, 0);
+
+	playerData[playerid][startRace_bg_txd] = Textdraw0;
+	playerData[playerid][startRace_title_txd] = Textdraw4;
+	playerData[playerid][startRace_a_txd] = Textdraw1;
+	playerData[playerid][startRace_b_txd] = Textdraw2;
+	playerData[playerid][startRace_c_txd] = Textdraw3;
+}
+
+
+stock TXDStartRace_destroy(playerid) {
+	PlayerTextDrawDestroy(playerid, playerData[playerid][startRace_bg_txd]);
+	PlayerTextDrawDestroy(playerid, playerData[playerid][startRace_title_txd]);
+	PlayerTextDrawDestroy(playerid, playerData[playerid][startRace_a_txd]);
+	PlayerTextDrawDestroy(playerid, playerData[playerid][startRace_b_txd]);
+	PlayerTextDrawDestroy(playerid, playerData[playerid][startRace_c_txd]);
+}
+
+stock TXDStartRace_hide(playerid) {
+	PlayerTextDrawHide(playerid, playerData[playerid][startRace_bg_txd]);
+	PlayerTextDrawHide(playerid, playerData[playerid][startRace_title_txd]);
+	PlayerTextDrawHide(playerid, playerData[playerid][startRace_a_txd]);
+	PlayerTextDrawHide(playerid, playerData[playerid][startRace_b_txd]);
+	PlayerTextDrawHide(playerid, playerData[playerid][startRace_c_txd]);
+}
+
+stock TXDStartRace_show(playerid) {
+	PlayerTextDrawShow(playerid, playerData[playerid][startRace_bg_txd]);
+	PlayerTextDrawShow(playerid, playerData[playerid][startRace_title_txd]);
+	PlayerTextDrawShow(playerid, playerData[playerid][startRace_a_txd]);
+	PlayerTextDrawShow(playerid, playerData[playerid][startRace_b_txd]);
+	PlayerTextDrawShow(playerid, playerData[playerid][startRace_c_txd]);
 }

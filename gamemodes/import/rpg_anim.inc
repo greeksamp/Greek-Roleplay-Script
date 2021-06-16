@@ -216,6 +216,11 @@ CMD:handsup(playerid,params[])
 	SetPlayerSpecialAction(playerid,SPECIAL_ACTION_HANDSUP);
 	return 1;
 }
+CMD:pee(playerid,params[])
+{
+	SetPlayerSpecialAction(playerid,SPECIAL_ACTION_HANDSUP);
+	return 1;
+}
 CMD:fall(playerid,params[])
 {
 	ApplyAnimation(playerid,"PED","KO_skid_front",4.1,0,1,1,1,0);
