@@ -615,7 +615,8 @@ enum pEnum {
 	account_bank,
 	account_clan,
 	account_clanRank,
-	account_mute
+	account_mute,
+	account_secondsSinceLastPayday
 }
 new playerData[MAX_PLAYERS + 1][pEnum];
 playerData_init(playerid = -1){
@@ -1257,6 +1258,7 @@ public assignORM(playerid)
 	orm_addvar_int(ormid, playerData[playerid][account_clan], "account_clan");
 	orm_addvar_int(ormid, playerData[playerid][account_clanRank], "account_clanRank");
 	orm_addvar_int(ormid, playerData[playerid][account_mute], "account_mute");
+	orm_addvar_int(ormid, playerData[playerid][account_secondsSinceLastPayday], "account_secondsSinceLastPayday");
 
 }
 
@@ -1548,7 +1550,7 @@ public registerComplete(playerid)
 	format(temp_veh, sizeof(temp_veh),"INSERT INTO `vehicles` (`vehicle_owner`, `vehicle_model`, `vehicle_parkX`, `vehicle_parkY`, `vehicle_parkZ`, `vehicle_parkA`, `vehicle_plate`, `vehicle_date`, `vehicle_color1`, `vehicle_color2`) VALUES ('%d', '%d', '%f', '%f', '%f', '%f', '%s', '%d', '1', '1')", playerData[playerid][account_id], 436,
 	FREECAR_PARK[FREECAR_PARK_IDX][0], FREECAR_PARK[FREECAR_PARK_IDX][1], FREECAR_PARK[FREECAR_PARK_IDX][2], FREECAR_PARK[FREECAR_PARK_IDX][3], playerData[playerid][account_name], gettime());
 	mysql_query(Database, temp_veh, false);
-	SendClientMessage(playerid, COLOR_INFO, "Server has given to you a free car. Locate it with /locations and lock it /lock.");
+	SendClientMessage(playerid, COLOR_INFO, "Server has given to you a free car. Locate it with /locations.");
 	playerData[playerid][account_free_vehicle] = 1;
 	printf("%s received the free car.", playerData[playerid][account_name]);
 
@@ -1776,8 +1778,10 @@ public serverInterval()
 		if (playerData[playerid][logged] == 1) {
 
 			if (PAYDAY) {
-				if (playerData[playerid][session_activeSeconds] <  60 * 20) {
-					SendClientMessage(playerid, -1, "You have not played 20 minutes. You can not get a paycheck.");
+				if (playerData[playerid][session_activeSeconds] <  60 * 5) {
+					SendClientMessage(playerid, -1, "You have not played at least 5 minutes during this session. You can not get a paycheck.");
+				} else if (playerData[playerid][account_secondsSinceLastPayday] <  60 * 30) {
+					SendClientMessage(playerid, -1, "You have not played at least 30 minutes since the last payday. You can not get a paycheck.");
 				} else {
 					SendClientMessage(playerid, -1, "|________________ PAYDAY ________________|");
 					new temp[128];
@@ -1786,11 +1790,11 @@ public serverInterval()
 					SendClientMessage(playerid, 0xb5b5b5FF, temp);
 					giveMoney(playerid, s_reward);
 					new b_reward = playerData[playerid][account_bank] * 2 / 100;
-					format(temp, sizeof(temp), "Bank Interest: +$%s", formatMoney(b_reward));
+					format(temp, sizeof(temp), "Bank Interest: +$%s (2%s)", formatMoney(b_reward), "%%");
 					SendClientMessage(playerid, 0xb5b5b5FF, temp);
 					playerData[playerid][account_bank] += b_reward;
 					SendClientMessage(playerid, 0xb5b5b5FF, "");
-					format(temp, sizeof(temp), "New Balance: $%s", formatMoney(playerData[playerid][account_bank]));
+					format(temp, sizeof(temp), "New Bank Balance: $%s", formatMoney(playerData[playerid][account_bank]));
 					SendClientMessage(playerid, 0xb5b5b5FF, temp);
 
 					playerData[playerid][account_score] += 1;
@@ -1800,8 +1804,10 @@ public serverInterval()
 
 					if (playerData[playerid][account_bank] < playerData[playerid][account_money] && playerData[playerid][account_money] > 10000) {
 						SendClientMessage(playerid, -1, "");
-						SendClientMessage(playerid, -1, "* You should /deposit your money to your bank account to earn more bank interest.");
+						SendClientMessage(playerid, -1, "* You should /deposit your money to your bank account to earn more from the bank interest.");
 					}
+
+					playerData[playerid][account_secondsSinceLastPayday] = 0;
 				}
 			}
 
@@ -1812,6 +1818,8 @@ public serverInterval()
 					playerData[playerid][account_activeSeconds] += 1; // overall
 
 					playerData[playerid][session_activeSeconds] += 1; // session
+
+					playerData[playerid][account_secondsSinceLastPayday] += 1; // since last received payday
 				}
 
 				/*if (playerData[playerid][session_activeSeconds] >= 3600 && playerData[playerid][session_lastReward] < 3600) {
@@ -5087,43 +5095,47 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		}
 	}
 
-	if ((newkeys & KEY_ANALOG_UP) && vehicleid != 0) {
-		new engine, lights, alarm, doors, bonnet, boot, objective;
-		GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
-		SetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, !bonnet, boot, objective);
-	}
+	if (vehicleid != 0 && GetPlayerVehicleSeat(playerid) == 0) {
 
-	if ((newkeys & KEY_ANALOG_DOWN) && vehicleid != 0) {
-		new engine, lights, alarm, doors, bonnet, boot, objective;
-		GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
-		SetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, !boot, objective);
-	}
-
-
-	if ((newkeys & KEY_LOOK_BEHIND) && vehicleid != 0 && !isBike(vehicleid) && !isPlane(vehicleid)) {
-		new engine, lights, alarm, doors, bonnet, boot, objective;
-		GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
-
-		if (carData[vehicleid][vehicle_fuel] <= 0 && !isBike(vehicleid)) {
-			SendClientMessage(playerid, COLOR_BADINFO, "Engine cannot hold. Fuel is empty. Call a taxi driver or buy from /shop.");
-			SetVehicleParamsEx(vehicleid, 0, 0, alarm, doors, bonnet, boot, objective);
-		} else {
-			if (engine == -1) {
-				engine = VEHICLE_PARAMS_OFF;
-			}
-			if (engine == VEHICLE_PARAMS_ON) {
-				lights = VEHICLE_PARAMS_OFF;
-			} else {
-				lights = VEHICLE_PARAMS_ON;
-			}
-			SetVehicleParamsEx(vehicleid, !engine, lights, alarm, doors, bonnet, boot, objective);
+		if ((newkeys & KEY_ANALOG_UP)) {
+			new engine, lights, alarm, doors, bonnet, boot, objective;
+			GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+			SetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, !bonnet, boot, objective);
 		}
-	}
 
-	if ((newkeys & KEY_ACTION) && vehicleid != 0 && !isBike(vehicleid) && !isPlane(vehicleid)) {
-		new engine, lights, alarm, doors, bonnet, boot, objective;
-		GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
-		SetVehicleParamsEx(vehicleid, engine, !lights, alarm, doors, bonnet, boot, objective);
+		if ((newkeys & KEY_ANALOG_DOWN)) {
+			new engine, lights, alarm, doors, bonnet, boot, objective;
+			GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+			SetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, !boot, objective);
+		}
+
+
+		if ((newkeys & KEY_LOOK_BEHIND) && !isBike(vehicleid) && !isPlane(vehicleid)) {
+			new engine, lights, alarm, doors, bonnet, boot, objective;
+			GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+
+			if (carData[vehicleid][vehicle_fuel] <= 0 && !isBike(vehicleid)) {
+				SendClientMessage(playerid, COLOR_BADINFO, "Engine cannot hold. Fuel is empty. Call a taxi driver or buy fuel from /shop.");
+				SetVehicleParamsEx(vehicleid, 0, 0, alarm, doors, bonnet, boot, objective);
+			} else {
+				if (engine == -1) {
+					engine = VEHICLE_PARAMS_OFF;
+				}
+				if (engine == VEHICLE_PARAMS_ON) {
+					lights = VEHICLE_PARAMS_OFF;
+				} else {
+					lights = VEHICLE_PARAMS_ON;
+				}
+				SetVehicleParamsEx(vehicleid, !engine, lights, alarm, doors, bonnet, boot, objective);
+			}
+		}
+
+		if ((newkeys & KEY_ACTION) && vehicleid != 0 && !isBike(vehicleid) && !isPlane(vehicleid)) {
+			new engine, lights, alarm, doors, bonnet, boot, objective;
+			GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+			SetVehicleParamsEx(vehicleid, engine, !lights, alarm, doors, bonnet, boot, objective);
+		}
+
 	}
 
 	if (playerData[playerid][spec_mode] == 1 && (newkeys & KEY_FIRE) ) {
@@ -5162,34 +5174,34 @@ public OnPlayerPickUpDynamicPickup(playerid, pickupid)
 
 	for (new i=0; i < sizeof(QUESTPOINTS); i++) {
 		if (floatround(QUESTPOINTS[i][3]) == pickupid) {
-			if (playerData[playerid][account_quest] == 1) {
-				SendClientMessage(playerid, COLOR_BADINFO, "Error: You cannot collect more stars. You have already completed the Quest.");
-			} else {
-				if (questData[playerid][i] == 0) {
-					questData[playerid][i] = 1;
-					new temp_count = 0;
-					for (new j=0; j < sizeof(QUESTPOINTS); j++) {
-						if (questData[playerid][j] == 1) {
-							temp_count ++;
-						}
-					}
-					new temp[128];
-					if (temp_count == sizeof(QUESTPOINTS)) {
-						format(temp, sizeof(temp), "Player %s has completed the Quest and got $15.000 and 7 Score Points.", playerData[playerid][account_name]);
-						SendClientMessageToAll(COLOR_PUBLIC, temp);
-						printf("%s", temp);
-						giveMoney(playerid, 15000);
-						playerData[playerid][account_score] += 7;
-						printf("SCORE: Player %s received 7 Score point for completing the quest.", playerData[playerid][account_name]);
-						playerData[playerid][account_quest] = 1;
-					} else {
-						format(temp, sizeof(temp), "You found a Quest Star! You have %d/%d more to find and get the special reward!", sizeof(QUESTPOINTS) - temp_count, sizeof(QUESTPOINTS));
-						SendClientMessage(playerid, COLOR_INFO, temp);
-					}
-				} else {
-					SendClientMessage(playerid, COLOR_SERVER, "Error: You have already collected this star.");
-				}
-			}
+			// if (playerData[playerid][account_quest] == 1) {
+			// 	SendClientMessage(playerid, COLOR_BADINFO, "Error: You cannot collect more stars. You have already completed the Quest.");
+			// } else {
+			// 	if (questData[playerid][i] == 0) {
+			// 		questData[playerid][i] = 1;
+			// 		new temp_count = 0;
+			// 		for (new j=0; j < sizeof(QUESTPOINTS); j++) {
+			// 			if (questData[playerid][j] == 1) {
+			// 				temp_count ++;
+			// 			}
+			// 		}
+			// 		new temp[128];
+			// 		if (temp_count == sizeof(QUESTPOINTS)) {
+			// 			format(temp, sizeof(temp), "Player %s has completed the Quest and got $15.000 and 7 Score Points.", playerData[playerid][account_name]);
+			// 			SendClientMessageToAll(COLOR_PUBLIC, temp);
+			// 			printf("%s", temp);
+			// 			giveMoney(playerid, 15000);
+			// 			playerData[playerid][account_score] += 7;
+			// 			printf("SCORE: Player %s received 7 Score point for completing the quest.", playerData[playerid][account_name]);
+			// 			playerData[playerid][account_quest] = 1;
+			// 		} else {
+			// 			format(temp, sizeof(temp), "You found a Quest Star! You have %d/%d more to find and get the special reward!", sizeof(QUESTPOINTS) - temp_count, sizeof(QUESTPOINTS));
+			// 			SendClientMessage(playerid, COLOR_INFO, temp);
+			// 		}
+			// 	} else {
+			// 		SendClientMessage(playerid, COLOR_SERVER, "Error: You have already collected this star.");
+			// 	}
+			// }
 		}
 	}
 }
@@ -7420,6 +7432,8 @@ CMD:engine(playerid, params[])
 {
 	if (GetPlayerVehicleID(playerid) == 0) {
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be in a vehicle.");
+	} else if (GetPlayerVehicleSeat(playerid) != 0) {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be the driver of the vehicle.");
 	} else {
 		new vehicleid = GetPlayerVehicleID(playerid);
 		if (!isBike(vehicleid)){
@@ -7788,8 +7802,8 @@ CMD:pay(playerid, params[])
 			SendClientMessage(playerid, COLOR_SERVER, "Error: You do not have that amount of money.");
 		} else {
 
-			if (temp_amount >= 10000) {
-				SendClientMessage(playerid, COLOR_SERVER, "Error: You do not have that amount of money with cash. You need to /transfer the money with your bank account.");
+			if (temp_amount >= 4000) {
+				SendClientMessage(playerid, COLOR_SERVER, "Error: You can give up to $4.000 to a player. You can /transfer more money through your bank account.");
 			} else {
 				new temp[128];
 				format(temp, 128, "\nAre you sure you want to send $%s to %s (%d)?", formatMoney(temp_amount), playerData[temp_id][account_name], temp_id);
@@ -7878,7 +7892,7 @@ Dialog:DLG_PAINTBALL_CLASS(playerid, response, listitem, inputtext[])
 	return 1;
 }
 
-CMD:togcolorchat(playerid, params[])
+CMD:togchat(playerid, params[])
 {
 	if(playerData[playerid][account_admin] < 4) {
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not authorized to use this command.");
@@ -7946,7 +7960,7 @@ CMD:ahelp(playerid,params[])
 	SendClientMessage(playerid, 0xB4B5B7FF, "*1* ADMIN *** /pm /spec(off) /getweapons");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*2* ADMIN *** /gethere /cc /check /respawn /(un)freeze");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*3* ADMIN *** /stoppaintball /sethp /setarmour");
-	SendClientMessage(playerid, 0xB4B5B7FF, "*4* ADMIN *** /togcolorchat /sinvite /rac /setskin /setjail /makeleader /givescoreall /givemoneyall /healall");
+	SendClientMessage(playerid, 0xB4B5B7FF, "*4* ADMIN *** /togchat /sinvite /rac /setskin /setjail /makeleader /givescoreall /givemoneyall /healall");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*5* ADMIN *** /tagchat /makehelper /reloadbiz /reloadhouses /reloadcars /setmoney /reloadclans /addhouse /togmodechat");
 	SendClientMessage(playerid, 0xB4B5B7FF, "*6* ADMIN *** /makeadmin /kickall");
 
@@ -11926,7 +11940,7 @@ stock playerStats(playerid, showerid, detailed)
 		format(phonenumber, sizeof(phonenumber), "%d-%d", playerData[playerid][account_phoneNumber], playerData[playerid][account_id]);
 	}
 
-	format(tempI, sizeof(tempI), "- Basic Info:\nID: [%d], Email: [%s], Registered: [%02d/%02d/%02d], Phone Number: [%s]\n\n- Player Stats:\nScore: [%d]", playerData[playerid][account_id], playerData[playerid][account_email], tempD, tempM, tempY, phonenumber, playerData[playerid][account_score]);
+	format(tempI, sizeof(tempI), "- Basic Info:\nID: [%d], Email: [%s], Registered: [%02d/%02d/%02d], Phone Number: [%s]\n\n- Player Stats:\nScore: [%d], Last Payday: [%d mins]", playerData[playerid][account_id], playerData[playerid][account_email], tempD, tempM, tempY, phonenumber, playerData[playerid][account_score], floatround(playerData[playerid][account_secondsSinceLastPayday]/60));
 	format(tempI,  sizeof(tempI), "%s, Deaths: [%d], Kills: [%d], Wanted Level: [%d]\n", tempI, playerData[playerid][account_deaths], playerData[playerid][account_kills], playerData[playerid][account_wanted]);
 	format(tempI,  sizeof(tempI), "%sCash: [$%s], Bank: [$%s], Active Hours: [%d], Active Minutes: [%d]", tempI, formatMoney(playerData[playerid][account_money]),formatMoney(playerData[playerid][account_bank]), floatround(playerData[playerid][account_activeSeconds]/3600.0, floatround_floor), floatround(playerData[playerid][account_activeSeconds]/60.0));
 	format(tempI, sizeof(tempI), "%s\nEscapes: [%d], Materials: [%d]\n\n- Factions:\nFaction: [%s]", tempI, playerData[playerid][account_succ_escapes],

@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `account_secondsSinceLastPayday` MEDIUMINT UNSIGNED NOT NULL DEFAULT '0' AFTER `account_mute`; 
