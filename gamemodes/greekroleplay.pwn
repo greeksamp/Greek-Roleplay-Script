@@ -238,7 +238,9 @@ new BUYCAR_CARS[][] = {
 	{559, 62000},
 	{567, 64000},
 	{565, 65000},
+	{558, 70000},
 	{492, 77000},
+	{534, 79500},
 	{521, 81000},
 	{562, 85000},
 	{581, 86000},
@@ -819,7 +821,8 @@ enum turfEnum {
 	turf_color[32],
 
 	turf_object_id,
-	turf_gangzone
+	turf_gangzone,
+	turf_zone_name[32]
 }
 
 #define MAX_TURFS 20
@@ -867,6 +870,15 @@ public loadTurfs(step)
 
 			CreateDynamic3DTextLabel(temp, 0xA6E9FFFF, turfData[temp_count][turf_posX], turfData[temp_count][turf_posY], turfData[temp_count][turf_posZ], 5.0);
 			CreateDynamicMapIcon(turfData[temp_count][turf_posX], turfData[temp_count][turf_posY], turfData[temp_count][turf_posZ], 19, 0, 0, 0);
+
+			new MapZone:this_turf_zone = GetMapZoneAtPoint2D(turfData[temp_count][turf_posX], turfData[temp_count][turf_posY]);
+
+			if (this_turf_zone == INVALID_MAP_ZONE_ID) {
+				format(temp, MAX_MAP_ZONE_NAME, "Unknown");
+			} else {
+				GetMapZoneName(this_turf_zone, temp);
+			}
+			format(turfData[temp_count][turf_zone_name], 32, "%s", temp);
 
 			temp_count++;
 		}
@@ -2831,9 +2843,9 @@ public OnGameModeInit()
 	}
 	Database = mysql_connect(host, user, pass, db);
 	if (mysql_errno(Database) != 0) {
-		printf("Error: Could not connect with the database (`%s`, `%s`, `%s`, `%s`).\n", host, user, pass, db);
+		printf("Error: Could not connect with the database (`%s`, `%s`).\n", host, user);
 	} else {
-		printf("Successfully connected with the database (`%s`, `%s`, `%s`, `%s`).\n", host, user, pass, db);
+		printf("Successfully connected with the database (`%s`, `%s`).\n", host, user);
 		DatabaseConnected = true;
 	}
 
@@ -6403,6 +6415,11 @@ CMD:track(playerid, params[])
 	return 1;
 }
 
+CMD:find(playerid, params[])
+{
+	return cmd_track(playerid, params);
+}
+
 
 CMD:trackoff(playerid, params[])
 {
@@ -7090,9 +7107,10 @@ CMD:spray(playerid, params[])
 CMD:turfs(playerid, params[])
 {
 	new temp[546];
-	format(temp, sizeof(temp), "Turf ID\tOwned By");
+	format(temp, sizeof(temp), "Turf ID\tOwned By\tLocation");
+
 	for(new i=0; i < MAX_TURFS; i++) {
-		format(temp, sizeof(temp), "%s\n%d\t%s", temp, turfData[i][turf_id], turfData[i][turf_owner_clanName]);
+		format(temp, sizeof(temp), "%s\n%d\t%s\t%s", temp, turfData[i][turf_id], turfData[i][turf_owner_clanName], turfData[i][turf_zone_name]);
 	}
 	Dialog_Show(playerid, DLG_TURFS, DIALOG_STYLE_TABLIST_HEADERS, "Turfs", temp, "Spray", "Cancel");
 	return 1;
@@ -9232,7 +9250,7 @@ CMD:sinvite(playerid, params[])
 					SendClientMessage(playerid, COLOR_INFO, temp);
 
 
-					format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '1', '%d', '%d', '', '%d')", playerData[temp_id][account_id], playerData[playerid][account_id], gettime(), playerData[playerid][account_faction]);
+					format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '1', '%d', '%d', '', '%d')", playerData[temp_id][account_id], playerData[playerid][account_id], gettime(), playerData[temp_id][account_faction]);
 					mysql_query(Database, tempE, false);
 
 				}
@@ -11544,6 +11562,10 @@ CMD:radio(playerid, params[]) {
 		MAD Radio 106.2\n\
 		Laknicek Radio\n\
 		Papoutsis Radio\n\
+		MarkellMTB Radio\n\
+		Redion On The Decks\n\
+		aleksis22_YT Radio\n\
+		STORIEL's Radio\n\
 		{B3B3B3}Stop Radio", "OK", "Cancel");
 	}
 	return 1;
@@ -11561,6 +11583,10 @@ Dialog:DLG_RADIO(playerid, response, listitem, inputtext[])
 		if (strcmp(inputtext, "MAD Radio 106.2") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "mad");
 		if (strcmp(inputtext, "Laknicek Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "lak");
 		if (strcmp(inputtext, "Papoutsis Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "papoutsis");
+		if (strcmp(inputtext, "MarkellMTB Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "markellmtb");
+		if (strcmp(inputtext, "Redion On The Decks") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "redion");
+		if (strcmp(inputtext, "aleksis22_YT Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "aleksis22_YT");
+		if (strcmp(inputtext, "STORIEL's Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "storiel");
 		if (strcmp(inputtext, "Stop Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "");
 
 		if (strcmp(inputtext, "Stop Radio") != 0) {
