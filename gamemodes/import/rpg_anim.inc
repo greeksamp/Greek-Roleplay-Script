@@ -213,12 +213,14 @@ CMD:push(playerid,params[])
 }
 CMD:handsup(playerid,params[])
 {
-	SetPlayerSpecialAction(playerid,SPECIAL_ACTION_HANDSUP);
+	SetPlayerSpecialAction(playerid, SPECIAL_ACTION_HANDSUP);
 	return 1;
 }
 CMD:pee(playerid,params[])
 {
-	SetPlayerSpecialAction(playerid,SPECIAL_ACTION_HANDSUP);
+	// error 017: undefined symbol "SPECIAL_ACTION_PISSING"  =  68, fixed in fixes.inc
+	SetPlayerSpecialAction(playerid, 68);
+	SendClientMessage(playerid, -1, "Press ENTER / F to stop the animation.");
 	return 1;
 }
 CMD:fall(playerid,params[])
