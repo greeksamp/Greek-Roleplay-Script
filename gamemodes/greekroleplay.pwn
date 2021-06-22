@@ -616,7 +616,8 @@ enum pEnum {
 	account_clan,
 	account_clanRank,
 	account_mute,
-	account_secondsSinceLastPayday
+	account_secondsSinceLastPayday,
+	account_lastFactionJoin
 }
 new playerData[MAX_PLAYERS + 1][pEnum];
 playerData_init(playerid = -1){
@@ -1259,6 +1260,7 @@ public assignORM(playerid)
 	orm_addvar_int(ormid, playerData[playerid][account_clanRank], "account_clanRank");
 	orm_addvar_int(ormid, playerData[playerid][account_mute], "account_mute");
 	orm_addvar_int(ormid, playerData[playerid][account_secondsSinceLastPayday], "account_secondsSinceLastPayday");
+	orm_addvar_int(ormid, playerData[playerid][account_lastFactionJoin], "account_lastFactionJoin");
 
 }
 
@@ -3233,6 +3235,25 @@ public OnGameModeInit()
 	Create3DTextLabel("{FFFFFF}Car Shop\nUse {A6E9FF}/buycar {FFFFFF}to buy a car.", 0xFFFFFFFF, -1966.5516,293.9211,35.4688, 40.0, 0, 1);
 
 
+
+
+
+	CreatePickup(1239, 1, 1754.2646,-1894.3219,13.5570, 0);
+	Create3DTextLabel("{FFFFFF}Taxi LS HQ\n{A6E9FF}/join", 0xFFFFFFFF, 1754.2646,-1894.3219,13.5570, 40.0, 0, 1);
+
+	CreatePickup(1239, 1, 1553.4355,-1675.1517,16.1953, 0);
+	Create3DTextLabel("{FFFFFF}LSPD HQ\n{A6E9FF}/join", 0xFFFFFFFF, 1553.4355,-1675.1517,16.1953, 40.0, 0, 1);
+
+	CreatePickup(1239, 1, 1177.4180,-1324.2224, 14.0697, 0);
+	Create3DTextLabel("{FFFFFF}Paramedics HQ\n{A6E9FF}/join", 0xFFFFFFFF, 1177.4180,-1324.2224, 14.0697, 40.0, 0, 1);
+
+	CreatePickup(1239, 1, 734.2955, -1355.4347, 15.1563, 0);
+	Create3DTextLabel("{FFFFFF}Hitman HQ\n{A6E9FF}/join", 0xFFFFFFFF, 734.2955, -1355.4347, 15.1563, 40.0, 0, 1);
+
+
+
+
+
 	// LSPD
 	CreateDynamicMapIcon(1553.4355,-1675.1517,16.1953, 30, 0, 0, 0);
 
@@ -3681,6 +3702,16 @@ public OnPlayerDisconnect(playerid, reason)
 
 public OnPlayerSpawn(playerid)
 {
+
+	if (playerData[playerid][logged] != 1) {
+		printf("KICK: %s got spawned while not being logged in.", playerData[playerid][account_name]);
+
+		SendClientMessage(playerid, 0x7bafdcFF, "Please reconnect and try again later.");
+		SetTimerEx("DelayedKick", 1000, 0, "i", playerid);
+
+		return 0;
+	}
+
 	ClearPlayerWeaponSafe(playerid);
 
 	if (playerData[playerid][spec_mode] == 1) return 1;
@@ -4389,7 +4420,7 @@ public OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY
 public OnPlayerText(playerid, text[])
 {
 	if (playerData[playerid][logged] == 0) {
-		printf("Ban: Player %s spoke on the chat while not being logged in.", playerData[playerid][account_name]);
+		printf("Player %s spoke on the chat while not being logged in.", playerData[playerid][account_name]);
 		return 0;
 	} else if (playerData[playerid][am_sleeping] == 1) {
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You can not talk while you are sleeping.");
@@ -5208,6 +5239,11 @@ public OnPlayerPickUpDynamicPickup(playerid, pickupid)
 
 public OnPlayerCommandReceived(playerid,cmdtext[])
 {
+	if (playerData[playerid][logged] != 1) {
+		printf("%s sent a command while not being logged in.", playerData[playerid][account_name]);
+		return 0;
+	}
+
 	if (gettime()-playerData[playerid][commands_cooldown] < 1) {
 		SendClientMessage(playerid, COLOR_BADINFO, "Do not spam the commands.");
 		playerData[playerid][commands_cooldown] = gettime();
@@ -6491,7 +6527,7 @@ CMD:locations(playerid, params[])
 	}  else if (playerData[playerid][am_working] > 0) {
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You are working right now.");
 	} else {
-		new temp[512];
+		new temp[1024];
 		format(temp, sizeof(temp), "");
 		new temp_houses = 0;
 		for (new i = 0; i < sizeof(houseData); i++) {
@@ -6510,9 +6546,9 @@ CMD:locations(playerid, params[])
 
 
 		if (strlen(temp) == 0) {
-			format(temp, sizeof(temp), "{ffffff}Car Shop SF\nGrove Street\nHitman\nParamedics\nPolice Department\nTaxi\n{72cc80}Farmer Job\n{72cc80}Dealer Job");
+			format(temp, sizeof(temp), "{ffffff}Car Shop San Fierro\nGrove Street\nHitman HQ\nParamedics HQ\nLSPD HQ\nTaxi LS HQ\n{72cc80}Farmer Job\n{72cc80}Dealer Job");
 		} else {
-			format(temp, sizeof(temp), "{ffffff}Car Shop SF\nGrove Street\nHitman\nParamedics\nPolice Department\nTaxi\n{72cc80}Farmer Job\n{72cc80}Dealer Job%s", temp);
+			format(temp, sizeof(temp), "{ffffff}Car Shop San Fierro\nGrove Street\nHitman HQ\nParamedics HQ\nLSPD HQ\nTaxi LS HQ\n{72cc80}Farmer Job\n{72cc80}Dealer Job%s", temp);
 		}
 		Dialog_Show(playerid, DLG_LOCATIONS, DIALOG_STYLE_LIST, "Locations", temp, "Locate", "Cancel");
 	}
@@ -9647,9 +9683,13 @@ CMD:heal(playerid, params[])
 		SetPlayerHealth(playerid, 100);
 
 	} else if (playerData[playerid][account_faction] == FACTION_LSPD && playerData[playerid][special_interior] == INTERIOR_PRISON) {
+
 		SetPlayerHealth(playerid, 100);
+
 	} else {
+
 		SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot heal here.");
+
 	}
 	return 1;
 }
@@ -10881,6 +10921,16 @@ CMD:setjail(playerid, params[])
 }
 
 
+CMD:clearjoin(playerid, params[])
+{
+	if(!IsPlayerAdmin(playerid)) {
+		return 0;
+	} else {
+		playerData[playerid][account_lastFactionJoin] = 0;
+	}
+	return 1;
+}
+
 
 CMD:clearrob(playerid, params[])
 {
@@ -10963,6 +11013,8 @@ CMD:setfuel(playerid, params[])
 	}
 	return 1;
 }
+
+
 CMD:givemeseconds(playerid, params[])
 {
 	if(!IsPlayerAdmin(playerid)) {
@@ -11443,6 +11495,102 @@ CMD:clanhelp(playerid, params[]) {
 	return 1;
 }
 
+CMD:join(playerid, params[]) {
+
+	if (playerData[playerid][account_jailed] > 0) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are in jail.")
+	} else if (playerData[playerid][account_escaped] == 1) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are escaping.");
+	} else if (playerData[playerid][robbing_state] > 0) {
+		return SendClientMessage(playerid, COLOR_SERVER, "Error: You cannot use this command while you are robbing.");
+	}
+
+	if (GetPlayerVehicleID(playerid) != 0) return SendClientMessage(playerid, COLOR_SERVER, "Error: You need to be outside your vehicle.");
+
+	if (playerData[playerid][account_rank] == 7) return SendClientMessage(playerid, COLOR_SERVER, "Error: Leaders cannot join another faction. Talk to an admin.");
+
+	if (gettime() - playerData[playerid][account_lastFactionJoin] < 432000) {
+		new temp[128];
+
+		new wait_time = (playerData[playerid][account_lastFactionJoin] + 432000) - gettime();
+
+		format(temp, sizeof(temp), "Error: You can join a new faction every 5 days (%d minutes left).", floatround(wait_time/60));
+		SendClientMessage(playerid, COLOR_SERVER, temp);
+
+		return 1;
+	}
+
+	new new_faction = -1;
+
+	if (IsPlayerInRangeOfPoint(playerid, 4.0, 1754.2646,-1894.3219,13.5570)) {
+
+		if (playerData[playerid][account_faction] == FACTION_TAXILS) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are already a member of Taxi LS.");
+
+		new_faction = FACTION_TAXILS;
+
+	} else if (IsPlayerInRangeOfPoint(playerid, 4.0, 1553.4355,-1675.1517,16.1953)) {
+
+		if (playerData[playerid][account_faction] == FACTION_LSPD) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are already a member of LSPD.");
+
+		if (playerData[playerid][account_clan] != 0) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are in a clan. You cannot join LSPD.");
+
+		new_faction = FACTION_LSPD;
+
+
+	} else if (IsPlayerInRangeOfPoint(playerid, 4.0, 1177.4180,-1324.2224, 14.0697)) {
+
+		if (playerData[playerid][account_faction] == FACTION_MEDICS) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are already a member of Paramedics.");
+
+		new_faction = FACTION_MEDICS;
+
+	} else if (IsPlayerInRangeOfPoint(playerid, 4.0, 734.2955, -1355.4347, 15.1563)) {
+
+		if (playerData[playerid][account_faction] == FACTION_HITMAN) return SendClientMessage(playerid, COLOR_SERVER, "Error: You are already a Hitman.");
+
+		new_faction = FACTION_HITMAN;
+
+	} else {
+		SendClientMessage(playerid, COLOR_SERVER, "Error: You are not near any HQ. Use /locations.");
+	}
+
+
+	if (new_faction != -1) {
+
+		playerData[playerid][account_faction] = new_faction;
+		playerData[playerid][account_rank] = 1;
+
+		playerData[playerid][account_skin] = -1;
+		
+		SpawnPlayer(playerid);
+		
+		new tempE[512];
+
+		if (new_faction != FACTION_CIVIL) {
+			format(tempE, 128, "New faction member! %s joined %s. Welcome him through /f chat.", playerData[playerid][account_name], getFactionName(new_faction));
+			SendClientMessageToFaction(new_faction, COLOR_FACTION, tempE);
+		}
+		printf("%s", tempE);
+
+		
+
+		format(tempE, sizeof(tempE),"INSERT INTO `promotions` (`promotion_player`, `promotion_type`, `promotion_new_level`, `promotion_by`, `promotion_date`, `promotion_reason`, `promotion_variable`) VALUES ( '%d', 'rank', '1', '%d', '%d', '/join', '%d')", playerData[playerid][account_id], playerData[playerid][account_id], gettime(), playerData[playerid][account_faction]);
+		mysql_query(Database, tempE, false);
+
+
+		format(tempE, sizeof(tempE), "**%s** joined %s with /join.", playerData[playerid][account_name], getFactionName(new_faction));
+
+		mysql_format(Database, tempE, sizeof(tempE),"INSERT INTO `discord_message` (`message_content`, `webhook_name`, `added_on`) VALUES ( '%e', 'welcome', '%d')", tempE, gettime());
+		mysql_query(Database, tempE, false);
+
+
+		playerData[playerid][account_lastFactionJoin] = gettime();
+
+	}
+
+
+	return 1;
+}
+
 CMD:factionhelp(playerid, params[]) {
 	if (playerData[playerid][account_faction]==FACTION_CIVIL) {
 		SendClientMessage(playerid, COLOR_SERVER, "You are not a member of any faction.");
@@ -11580,6 +11728,9 @@ CMD:radio(playerid, params[]) {
 		Redion On The Decks\n\
 		aleksis22_YT Radio\n\
 		STORIEL's Radio\n\
+		Fat_Smoke Radio\n\
+		Thanasis358 Radio\n\
+		steveGR121 Radio\n\
 		{B3B3B3}Stop Radio", "OK", "Cancel");
 	}
 	return 1;
@@ -11601,6 +11752,9 @@ Dialog:DLG_RADIO(playerid, response, listitem, inputtext[])
 		if (strcmp(inputtext, "Redion On The Decks") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "redion");
 		if (strcmp(inputtext, "aleksis22_YT Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "aleksis22_YT");
 		if (strcmp(inputtext, "STORIEL's Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "storiel");
+		if (strcmp(inputtext, "Fat_Smoke Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "fat");
+		if (strcmp(inputtext, "Thanasis358 Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "thanasis358");
+		if (strcmp(inputtext, "steveGR121 Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "steveGR121");
 		if (strcmp(inputtext, "Stop Radio") == 0) format(vehicleRadio[GetPlayerVehicleID(playerid)], 32, "");
 
 		if (strcmp(inputtext, "Stop Radio") != 0) {

@@ -145,7 +145,9 @@ anim_preload_anims(playerid) {
 
 CMD:animstop(playerid,params[])
 {
-	ClearAnimations(playerid);
+	if (GetPlayerVehicleID(playerid) == 0) {
+		ClearAnimations(playerid);
+	}
 	return 1;
 }
 
