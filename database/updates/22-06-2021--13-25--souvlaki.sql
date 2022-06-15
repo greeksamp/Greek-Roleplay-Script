@@ -1,1 +1,0 @@
-ALTER TABLE `accounts` ADD `account_lastFactionJoin` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `account_secondsSinceLastPayday`; 
